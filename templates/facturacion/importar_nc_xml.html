@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <div style="margin-bottom: 20px;">
+    <a href="{{ url_for('facturacion_index') }}"
+       style="padding: 6px 12px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 4px;">
+      ← Volver al resumen
+    </a>
+  </div>
+
+  <h2>Importar Nota de Crédito desde XML SUNAT</h2>
+
+  <form id="upload-form" method="POST" enctype="multipart/form-data">
+    <div id="drop-zone"
+         style="border: 2px dashed #dc3545; padding: 40px; text-align: center; border-radius: 8px; margin-bottom: 20px;">
+      📂 <strong>Arrastra aquí un archivo XML de Nota de Crédito</strong><br>
+      o haz clic para seleccionarlo<br><br>
+      <input type="file" name="archivo_xml" id="file-input" accept=".xml" style="display: none;">
+      <span id="file-name" style="font-style: italic; color: gray;"></span>
+    </div>
+
+    <button type="submit"
+            style="background-color: #dc3545; color: white; padding: 8px 16px; border: none; border-radius: 4px;">
+      🔄 Procesar NC XML
+    </button>
+
+    {% if error %}
+    <div style="color: red; font-weight: bold; margin-top: 16px;">
+      ⚠️ {{ error }}
+    </div>
+    {% endif %}
+  </form>
+
+  {% if datos %}
+    <hr>
+    <h3>Datos detectados:</h3>
+    <form method="POST" action="{{ url_for('registrar_nc_desde_xml') }}">
+      <label>Número de Nota de Crédito:</label><br>
+      <input type="text" name="nro_nc" value="{{ datos.nro_nc }}" readonly><br><br>
+
+      <label>Factura Afectada:</label><br>
+      <input type="text" name="factura_afectada" value="{{ datos.factura_afectada }}" readonly><br><br>
+
+      <label>Fecha de Nota de Crédito:</label><br>
+      <input type="date" name="fecha_nc" value="{{ datos.fecha_nc }}"><br><br>
+
+
+      <label>Monto de Nota de Crédito (sin IGV, será descontado):</label><br>
+      <input type="text" name="monto_nc" value="{{ datos.monto_nc }}"><br><br>
+
+
+      <label>ID de Oportunidad (si se detectó automáticamente):</label><br>
+      <input type="text" name="id_propuesta" value="{{ datos.id_propuesta }}" readonly><br><br>
+
+      <button type="submit" style="background-color: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 4px;">
+        ✅ Registrar Nota de Crédito
+      </button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+  const fileNameSpan = document.getElementById('file-name');
+
+  dropZone.addEventListener('click', () => fileInput.click());
+
+  dropZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropZone.style.backgroundColor = '#f8d7da';
+  });
+
+  dropZone.addEventListener('dragleave', e => {
+    dropZone.style.backgroundColor = '';
+  });
+
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.style.backgroundColor = '';
+    const files = e.dataTransfer.files;
+    if (files.length) {
+      fileInput.files = files;
+      fileNameSpan.textContent = `Archivo: ${files[0].name}`;
+    }
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length > 0) {
+      fileNameSpan.textContent = `Archivo: ${fileInput.files[0].name}`;
+    }
+  });
+</script>
+{% endblock %}

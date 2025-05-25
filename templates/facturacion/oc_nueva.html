@@ -1,0 +1,61 @@
+<form method="POST" action="/facturacion/nueva_oc" id="form-oc-ajax">
+  <input type="hidden" name="id_propuesta" id="id_propuesta_oc" value="{{ id_propuesta }}">
+
+  <label for="nro_oc">Número de OC:</label><br>
+  <input type="text" name="nro_oc" required><br><br>
+
+  <label for="fecha_oc">Fecha de OC:</label><br>
+  <input type="date" name="fecha_oc" required><br><br>
+
+  <label for="monto_oc">Monto:</label><br>
+  <input type="number" step="0.01" name="monto_oc" required><br><br>
+
+  <label for="pm_asignado">PM Asignado:</label><br>
+  <input type="text" name="pm_asignado"><br><br>
+
+
+  <label for="moneda">Moneda:</label><br>
+  {% if propuesta.cierre_soles and not propuesta.cierre_dolares %}
+    <input type="text" name="moneda" value="S/" readonly><br><br>
+  {% elif propuesta.cierre_dolares and not propuesta.cierre_soles %}
+    <input type="text" name="moneda" value="US$" readonly><br><br>
+  {% elif propuesta.cierre_dolares and propuesta.cierre_soles %}
+    <select name="moneda" required>
+      <option value="">--Seleccionar--</option>
+      <option value="S/">S/</option>
+      <option value="US$">US$</option>
+    </select><br><br>
+  {% else %}
+    <p style="color: red;"><strong>⚠ No se puede registrar una OC porque no hay cierre definido en soles ni en dólares.</strong></p>
+    <input type="hidden" name="moneda" value=""><br><br>
+  {% endif %}
+
+
+
+  <button type="submit" class="button">Guardar OC</button>
+</form>
+
+<script>
+document.getElementById("form-oc-ajax").addEventListener("submit", function (e) {
+  e.preventDefault();
+  const formData = new FormData(this);
+  const idPropuesta = formData.get("id_propuesta");
+
+  fetch("/facturacion/nueva_oc?id_propuesta=" + idPropuesta + "&ajax=1", {
+    method: "POST",
+    body: formData
+  })
+  .then(res => {
+    if (!res.ok) {
+      return res.text().then(text => { throw new Error(text); });
+    }
+    return res.text();
+  })
+  .then(html => {
+    document.getElementById("detalles-" + idPropuesta).innerHTML = html;
+  })
+  .catch(err => {
+    alert("Error: " + err.message);
+  });
+});
+</script>

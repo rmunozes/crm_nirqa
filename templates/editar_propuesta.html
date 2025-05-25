@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Editar Propuesta</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+        }
+        h1 {
+            margin-bottom: 20px;
+        }
+        form div {
+            margin-bottom: 12px;
+        }
+        label {
+            display: inline-block;
+            width: 180px;
+            font-weight: bold;
+        }
+        input[type="text"],
+        input[type="date"],
+        input[type="number"],
+        select {
+            width: 300px;
+            padding: 6px;
+        }
+        .button {
+            padding: 5px 15px;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            margin-right: 10px;
+            color: white;
+        }
+
+        .guardar {
+            background-color: #4CAF50; /* verde */
+        }
+
+        .salir {
+            background-color: #f44336; /* rojo */
+        }
+
+        .button:hover {
+            opacity: 0.9;
+        }
+
+        .back-link {
+            margin-top: 20px;
+            display: inline-block;
+        }
+        select,
+        input[type="text"],
+        input[type="date"],
+        input[type="number"] {
+            width: 300px;
+            padding: 6px;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+    </style>
+
+
+</head>
+<body>
+    <h1>Editar Propuesta</h1>
+    <form method="POST">
+        <div><label>Número de Propuesta (ID):</label> <input type="text" name="nro_oportunidad" value="{{ propuesta.nro_oportunidad }}" readonly></div>
+        <div><label>Número Antiguo:</label> <input type="text" name="nro_antiguo" value="{{ propuesta.nro_antiguo }}"></div>
+        <div><label>Fecha de Solicitud:</label> <input type="date" name="fecha_solicitud" value="{{ propuesta.fecha_solicitud }}" readonly style="background-color: #f0f0f0;"></div>
+        <div><label>Fecha de Actualización:</label> <input type="date" name="fecha_actualizacion" value="{{ propuesta.fecha_actualizacion }}" readonly style="background-color: #eee;"></div>
+
+        <div><label>Cliente:</label>
+            <select name="cliente">
+                {% for opcion in clientes %}
+                    <option value="{{ opcion }}" {% if propuesta.cliente == opcion %}selected{% endif %}>{{ opcion }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div><label>Cliente Final:</label> <input type="text" name="cliente_final" value="{{ propuesta.cliente_final }}"></div>
+        <div><label>Nombre Oportunidad:</label> <input type="text" name="nombre_oportunidad" value="{{ propuesta.nombre_oportunidad }}"></div>
+
+        <div><label>Account Manager:</label>
+            <select name="account_manager">
+                {% for opcion in account_managers %}
+                    <option value="{{ opcion }}" {% if propuesta.account_manager == opcion %}selected{% endif %}>{{ opcion }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div><label>Contacto del Cliente:</label> <input type="text" name="contacto_cliente" value="{{ propuesta.contacto_cliente }}"></div>
+
+        <div><label>Preventa Asignado:</label>
+            <select name="preventa_asignado">
+                {% for opcion in preventas %}
+                    <option value="{{ opcion }}" {% if propuesta.preventa_asignado == opcion %}selected{% endif %}>{{ opcion }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div><label>Probabilidad de Cierre (%):</label>
+            <select name="probabilidad_cierre">
+                {% for val in probabilidades %}
+                    <option value="{{ val }}" {% if propuesta.probabilidad_cierre == val %}selected{% endif %}>
+                        {{ (val * 100)|int }}%
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div><label>Status:</label>
+            <select name="status">
+                {% for opcion in estados %}
+                    <option value="{{ opcion }}" {% if propuesta.status == opcion %}selected{% endif %}>{{ opcion }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div><label>Cierre en Soles (S/):</label> <input type="number" step="0.01" name="cierre_soles" value="{{ propuesta.cierre_soles }}"></div>
+        <div><label>Cierre en Dólares (US$):</label> <input type="number" step="0.01" name="cierre_dolares" value="{{ propuesta.cierre_dolares }}"></div>
+
+        <div>
+            <button type="submit" class="button guardar">Guardar Cambios</button>
+            <a href="{{ url_for('index') }}"><button type="button" class="button salir">Salir sin guardar</button></a>
+        </div>
+    </form>
+
+    <h2>📜 Historial de Cambios</h2>
+    {% if logs %}
+
+        <ul>
+            {% for log in logs %}
+                <li>
+                    [{{ log.fecha | datetime }}] [{{ log.usuario }}] {{ log.campo }}: '{{ log.valor_anterior }}' → '{{ log.valor_nuevo }}'
+                </li>
+            {% endfor %}
+        </ul>
+
+
+    {% else %}
+        <p>No hay cambios registrados para esta propuesta.</p>
+    {% endif %}
+
+
+
+</body>
+</html>

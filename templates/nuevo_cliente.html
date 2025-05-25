@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h2>Registrar Nuevo Cliente</h2>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul>
+        {% for category, message in messages %}
+          <li style="color: {% if category == 'error' %}red{% elif category == 'success' %}green{% endif %};">
+            {{ message }}
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <form method="POST" style="max-width: 600px; margin-top: 25px;">
+    <div style="margin-bottom: 16px;">
+      <label for="nombre" style="display: block; font-weight: bold;">Cliente:</label>
+      <input type="text" id="nombre" name="nombre" required style="width: 100%; padding: 8px;">
+    </div>
+
+    <div style="margin-bottom: 16px;">
+      <label for="direccion" style="display: block; font-weight: bold;">Dirección:</label>
+      <input type="text" id="direccion" name="direccion" style="width: 100%; padding: 8px;">
+    </div>
+
+    <div style="margin-bottom: 16px;">
+      <label for="telefono" style="display: block; font-weight: bold;">Teléfono:</label>
+      <input type="text" id="telefono" name="telefono" style="width: 100%; padding: 8px;">
+    </div>
+
+    <div style="margin-bottom: 16px;">
+      <label for="email" style="display: block; font-weight: bold;">Email:</label>
+      <input type="email" id="email" name="email" style="width: 100%; padding: 8px;">
+    </div>
+
+    <div style="margin-bottom: 24px;">
+      <label for="contacto" style="display: block; font-weight: bold;">Persona de Contacto:</label>
+      <input type="text" id="contacto" name="contacto" style="width: 100%; padding: 8px;">
+    </div>
+
+    <button type="submit" class="button guardar">Guardar Cliente</button>
+    <a href="{{ url_for('admin_clientes') }}" class="button volver" style="margin-left: 12px;">← Volver</a>
+  </form>
+{% endblock %}

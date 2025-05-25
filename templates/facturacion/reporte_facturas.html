@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h2>Reporte de Facturas</h2>
+
+  <div style="margin-bottom: 15px;">
+    <a href="{{ url_for('facturacion_index') }}"
+       style="padding: 6px 12px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px;">
+      📊 Volver a Facturación
+    </a>
+
+  </div>
+
+  <div style="margin-bottom: 15px;">
+
+    <a href="{{ url_for('descargar_reporte_facturas_excel', **request.args) }}" class="btn btn-success">
+      📥 Descargar en Excel
+    </a>
+
+
+  </div>
+
+
+  <form method="get" action="{{ url_for('facturacion_reporte_facturas') }}" style="margin-bottom: 20px;">
+    <fieldset style="border: 1px solid #ccc; padding: 12px;">
+      <legend><strong>🔍 Filtros</strong></legend>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+        <label style="min-width: 180px; display: flex; flex-direction: column;">
+          Nro Factura:
+          <input type="text" name="nro_factura" value="{{ request.args.get('nro_factura', '') }}">
+        </label>
+
+        <label style="min-width: 180px; display: flex; flex-direction: column;">
+          Fecha Desde:
+          <input type="date" name="fecha_desde" value="{{ request.args.get('fecha_desde', '') }}">
+        </label>
+
+        <label style="min-width: 180px; display: flex; flex-direction: column;">
+          Fecha Hasta:
+          <input type="date" name="fecha_hasta" value="{{ request.args.get('fecha_hasta', '') }}">
+        </label>
+
+        <label style="min-width: 180px; display: flex; flex-direction: column;">
+          Nro OC:
+          <input type="text" name="nro_oc" value="{{ request.args.get('nro_oc', '') }}">
+        </label>
+
+        <label style="min-width: 180px; display: flex; flex-direction: column;">
+          ID Oportunidad:
+          <input type="text" name="id_propuesta" value="{{ request.args.get('id_propuesta', '') }}">
+        </label>
+
+        <label style="min-width: 180px; display: flex; flex-direction: column;">
+          Cliente:
+          <input type="text" name="cliente" value="{{ request.args.get('cliente', '') }}">
+        </label>
+
+        <label style="min-width: 180px; display: flex; flex-direction: column;">
+          Cliente Final:
+          <input type="text" name="cliente_final" value="{{ request.args.get('cliente_final', '') }}">
+        </label>
+
+        <label style="min-width: 220px; display: flex; flex-direction: column;">
+          Nombre Oportunidad:
+          <input type="text" name="nombre_oportunidad" value="{{ request.args.get('nombre_oportunidad', '') }}">
+        </label>
+      </div>
+
+      <br>
+      <button type="submit" style="padding: 6px 12px; background-color: #28a745; color: white; border: none; border-radius: 4px;">
+        Filtrar
+      </button>
+      <a href="{{ url_for('facturacion_reporte_facturas') }}" style="margin-left: 10px; color: #007bff;">Limpiar</a>
+    </fieldset>
+  </form>
+
+
+  {% if reporte %}
+    <table border="1" cellpadding="5" cellspacing="0" style="width: 100%; border-collapse: collapse;">
+      <thead>
+        <tr>
+          {% set current_sort = sort %}
+          {% set current_order = order %}
+          {% for col, label in [
+            ('nro_factura', 'Número de Factura'),
+            ('fecha_factura', 'Fecha de Factura'),
+            ('nro_oc', 'Número de OC'),
+            ('id_propuesta', 'ID Oportunidad'),
+            ('cliente', 'Cliente'),
+            ('cliente_final', 'Cliente Final'),
+            ('nombre_oportunidad', 'Nombre de la Oportunidad'),
+            ('monto_soles', 'Monto S/'),
+            ('monto_dolares', 'Monto US$')
+          ] %}
+            <th style="color: #004366; text-align: {% if 'monto' in col %}right{% else %}left{% endif %};">
+              <a href="{{ url_for('facturacion_reporte_facturas', sort=col, order='asc' if current_sort != col or current_order == 'desc' else 'desc', pagina=pagina) }}"
+                 style="text-decoration: none; color: inherit;">
+                {{ label }}
+                {% if current_sort == col %}
+                  {% if current_order == 'asc' %}▲{% else %}▼{% endif %}
+                {% endif %}
+              </a>
+            </th>
+          {% endfor %}
+        </tr>
+      </thead>
+
+      <tbody>
+        {% for fila in reporte %}
+          <tr>
+            <td>{{ fila.nro_factura }}</td>
+            <td>{{ fila.fecha_factura | datetimeformat }}</td>
+            <td>{{ fila.nro_oc }}</td>
+            <td>{{ fila.id_propuesta }}</td>
+            <td>{{ fila.cliente }}</td>
+            <td>{{ fila.cliente_final }}</td>
+            <td>{{ fila.nombre_oportunidad }}</td>
+            <td style="text-align: right;">S/. {{ "{:,.2f}".format(fila.monto_soles or 0) }}</td>
+            <td style="text-align: right;">US$ {{ "{:,.2f}".format(fila.monto_dolares or 0) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+
+      <tfoot>
+        <tr style="font-weight: bold; background-color: #f2f2f2;">
+          <td colspan="7" style="text-align: right;">TOTAL GENERAL:</td>
+          <td style="text-align: right;">S/. {{ "{:,.2f}".format(total_general_soles or 0) }}</td>
+          <td style="text-align: right;">US$ {{ "{:,.2f}".format(total_general_dolares or 0) }}</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <div style="margin-top: 20px; text-align: center;">
+      <strong>Página {{ pagina }} de {{ total_paginas }}</strong><br><br>
+
+      {% if pagina > 1 %}
+        <a href="{{ url_for('facturacion_reporte_facturas', pagina=1, sort=sort, order=order) }}" style="margin-right: 8px;">⏮ Primera</a>
+        <a href="{{ url_for('facturacion_reporte_facturas', pagina=pagina-1, sort=sort, order=order) }}" style="margin-right: 8px;">⬅ Anterior</a>
+      {% endif %}
+
+      {% if pagina < total_paginas %}
+        <a href="{{ url_for('facturacion_reporte_facturas', pagina=pagina+1, sort=sort, order=order) }}" style="margin-right: 8px;">Siguiente ➡</a>
+        <a href="{{ url_for('facturacion_reporte_facturas', pagina=total_paginas, sort=sort, order=order) }}">Última ⏭</a>
+      {% endif %}
+    </div>
+
+  {% else %}
+    <p>No hay facturas registradas.</p>
+  {% endif %}
+{% endblock %}

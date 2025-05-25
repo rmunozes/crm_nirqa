@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h2>Error al registrar factura desde XML</h2>
+  <div style="margin: 20px 0; padding: 16px; background-color: #ffe6e6; border: 1px solid #cc0000; border-radius: 6px;">
+    <strong style="color: #cc0000;">{{ mensaje }}</strong>
+  </div>
+  <a href="{{ url_for('importar_factura_xml') }}"
+     style="padding: 6px 12px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 4px;">
+    ← Volver a Importar XML
+  </a>
+{% endblock %}

@@ -1,0 +1,128 @@
+<div id="detalles-{{ id_propuesta }}">
+  <div style="margin-top: 8px; background-color: #fcfcfc; padding: 12px; border-radius: 8px; box-shadow: 0 0 6px rgba(0,0,0,0.05);">
+    <h4 style="margin-bottom: 6px;">📄 Órdenes de Compra</h4>
+    {% if ordenes %}
+      {% set total_oc = ordenes | sum(attribute='monto_oc') | float %}
+      <table border="1" cellpadding="5" cellspacing="0" style="width: 100%; border-collapse: collapse;">
+
+        <tr style="background-color: #eee;">
+          <th>Número OC</th>
+          <th>Fecha OC</th>
+          <th>Monto</th>
+          <th>Moneda</th>
+          <th>PM Asignado</th>
+          <th>Facturado</th>
+          <th>Pendiente</th>
+        </tr>
+
+
+
+        {% for oc in ordenes %}
+        <tr>
+          <td>
+            <a href="#" onclick="mostrarFormularioEditarOC('{{ oc.id_oc }}', '{{ id_propuesta }}'); return false;">
+              {{ oc.nro_oc }}
+            </a>
+          </td>
+          <td>{{ oc.fecha_oc }}</td>
+          <td style="text-align: right;">{{ "{:,.2f}".format(oc.monto_oc | float) }}</td>
+
+          <td style="text-align: center;">
+            {% if oc.moneda == 'S/' %}
+              <span style="background-color: #e0f7fa; color: #00796b; padding: 4px 8px; border-radius: 6px; font-weight: bold;">S/</span>
+            {% elif oc.moneda == 'US$' %}
+              <span style="background-color: #e0f7fa; color: #c2185b; padding: 4px 8px; border-radius: 6px; font-weight: bold;">US$</span>
+            {% else %}
+              {{ oc.moneda }}
+            {% endif %}
+          </td>
+
+
+          <td>{{ oc.pm_asignado }}</td>
+          <td style="text-align: right;">{{ "{:,.2f}".format(oc.monto_facturado or 0) }}</td>
+          <td style="text-align: right;">{{ "{:,.2f}".format(oc.monto_pendiente or 0) }}</td>
+
+
+
+        </tr>
+        {% endfor %}
+        <tr style="font-weight: bold; background-color: #f2f2f2;">
+          <td colspan="2">Total OC</td>
+          <td style="text-align: right;">{{ "{:,.2f}".format(total_oc) }}</td>
+          <td colspan="2"></td>
+        </tr>
+        <tr style="font-weight: bold; background-color: #f2f2f2;">
+          <td colspan="2">Booking total</td>
+          <td style="text-align: right;">
+            {% if ordenes and ordenes[0].moneda == 'S/' %}
+              {{ "{:,.2f}".format(propuesta.cierre_soles or 0) }}
+            {% elif ordenes and ordenes[0].moneda == 'US$' %}
+              {{ "{:,.2f}".format(propuesta.cierre_dolares or 0) }}
+            {% else %}
+              -
+            {% endif %}
+          </td>
+          <td colspan="2"></td>
+        </tr>
+      </table>
+    {% else %}
+      <p>No hay órdenes de compra asociadas.</p>
+    {% endif %}
+
+    <h4 style="margin-top: 20px; margin-bottom: 6px;">🧾 Facturas</h4>
+    {% if facturas %}
+      {% set total_factura = facturas | sum(attribute='monto_factura') | float %}
+      <table border="1" cellpadding="5" cellspacing="0" style="width: 100%; border-collapse: collapse;">
+        <tr style="background-color: #eee;">
+          <th>Número Factura</th>
+          <th>Fecha</th>
+          <th>Monto</th>
+        </tr>
+        {% for f in facturas %}
+        <tr>
+          <td>
+            <a href="#" onclick="mostrarFormularioEditarFactura('{{ f.id_factura }}', '{{ id_propuesta }}'); return false;">
+              {{ f.nro_factura }}
+            </a>
+          </td>
+          <td>{{ f.fecha_factura }}</td>
+          <td style="text-align: right;">{{ "{:,.2f}".format(f.monto_factura | float) }}</td>
+        </tr>
+        {% endfor %}
+        <tr style="font-weight: bold; background-color: #f2f2f2;">
+          <td colspan="2">Total Facturado</td>
+          <td style="text-align: right;">{{ "{:,.2f}".format(total_factura) }}</td>
+        </tr>
+
+        <tr style="font-weight: bold;
+                   {% if (total_oc - total_factura) > 0 %}
+                     background-color: #fff9c4; color: red;
+                   {% else %}
+                     background-color: #f2f2f2;
+                   {% endif %}">
+          <td colspan="2">Pendiente de Facturar</td>
+          <td style="text-align: right;">{{ "{:,.2f}".format(total_oc - total_factura) }}</td>
+        </tr>
+
+
+      </table>
+    {% else %}
+      <p>No hay facturas asociadas.</p>
+    {% endif %}
+  </div>
+
+  <div style="margin-top: 12px;">
+    <button class="button" onclick="mostrarFormularioOC('{{ id_propuesta }}')">➕ Registrar OC</button>
+    <button class="button" onclick="mostrarFormularioFactura('{{ id_propuesta }}')">➕ Registrar Factura</button>
+  </div>
+
+  <!-- El formulario se inyecta aquí -->
+  <div id="formulario-dinamico-{{ id_propuesta }}" style="margin-top: 10px;"></div>
+</div>
+
+<script>
+function cerrarModal() {
+  document.getElementById("modal-edicion").style.display = "none";
+  document.getElementById("modal-contenido").innerHTML = "";
+}
+</script>

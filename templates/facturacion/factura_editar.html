@@ -1,0 +1,19 @@
+<form method="POST">
+  <!-- CAMBIO CLAVE -->
+  <input type="hidden" name="id_propuesta" value="{{ id_propuesta }}">
+
+  <label for="nro_oc">Número de OC:</label><br>
+  <input type="text" name="nro_oc" value="{{ nro_oc }}" readonly><br><br>
+
+
+  <label for="nro_factura">Número de Factura:</label><br>
+  <input type="text" name="nro_factura" value="{{ factura.nro_factura }}" required><br><br>
+
+  <label for="fecha_factura">Fecha de Factura:</label><br>
+  <input type="date" name="fecha_factura" value="{{ factura.fecha_factura }}" required><br><br>
+
+  <label for="monto_factura">Monto:</label><br>
+  <input type="number" step="0.01" name="monto_factura" value="{{ factura.monto_factura }}" required><br><br>
+
+  <button type="submit" class="button">Guardar Cambios</button>
+</form>

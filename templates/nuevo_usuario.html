@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Crear Nuevo Usuario</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        h2 { margin-bottom: 20px; }
+        form div { margin-bottom: 12px; }
+        label { display: inline-block; width: 140px; font-weight: bold; }
+        input, select {
+            width: 250px; padding: 6px;
+            font-size: 14px; font-family: Arial, sans-serif;
+            border: 1px solid #ccc; border-radius: 4px;
+        }
+        button {
+            padding: 8px 20px;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            color: white;
+            background-color: #4CAF50;
+            border-radius: 4px;
+        }
+        .mensaje { margin-top: 15px; font-weight: bold; }
+        .error { color: red; }
+        .ok { color: green; }
+        ul#requisitos-password {
+            font-size: 13px;
+            margin: 6px 0 12px 140px;
+            padding-left: 0;
+            list-style: none;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h2>Crear Nuevo Usuario</h2>
+
+    {% with mensajes = get_flashed_messages(with_categories=true) %}
+        {% if mensajes %}
+            {% for categoria, mensaje in mensajes %}
+                <p style="color: {% if categoria == 'success' %}green{% elif categoria == 'error' %}red{% else %}black{% endif %}; font-weight: bold;">
+                    {{ mensaje }}
+                </p>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <form method="POST">
+        <div><label>Nombre:</label> <input type="text" name="nombre" required></div>
+        <div><label>Email:</label> <input type="email" name="email" required></div>
+        <div>
+            <label>Contraseña:</label>
+            <input type="text" name="password" id="password" value="{{ password_generada or '' }}" readonly style="background-color: #eee; color: #555;">
+
+            <ul id="requisitos-password">
+                <li id="req-largo">❌ Al menos 8 caracteres</li>
+                <li id="req-mayus">❌ Una letra mayúscula</li>
+                <li id="req-minus">❌ Una letra minúscula</li>
+                <li id="req-numero">❌ Un número</li>
+                <li id="req-simbolo">❌ Un símbolo (@#$...)</li>
+            </ul>
+        </div>
+        <div><label>Rol:</label>
+            <select name="rol" required>
+                <option value="">Seleccione un rol</option>
+                {% for rol in roles %}
+                    <option value="{{ rol }}">{{ rol.replace('_', ' ').title() }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <button type="submit" class="button guardar">Crear Usuario</button>
+
+            <!-- Botón Volver -->
+            <a href="{{ url_for('admin_usuarios') }}" style="text-decoration: none;">
+                <button type="button" style="
+                    background-color: #ddd;
+                    padding: 8px 20px;
+                    font-weight: bold;
+                    font-size: 16px;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    transition: background-color 0.2s ease;
+                ">
+                    ← Volver
+                </button>
+            </a>
+        </div>
+    </form>
+
+    <script>
+        function verificarPassword() {
+            const password = document.getElementById("password").value;
+            const requisitos = document.getElementById("requisitos-password");
+            requisitos.style.display = password ? "block" : "none";
+
+            document.getElementById("req-largo").textContent =
+                password.length >= 8 ? "✅ Al menos 8 caracteres" : "❌ Al menos 8 caracteres";
+
+            document.getElementById("req-mayus").textContent =
+                /[A-Z]/.test(password) ? "✅ Una letra mayúscula" : "❌ Una letra mayúscula";
+
+            document.getElementById("req-minus").textContent =
+                /[a-z]/.test(password) ? "✅ Una letra minúscula" : "❌ Una letra minúscula";
+
+            document.getElementById("req-numero").textContent =
+                /[0-9]/.test(password) ? "✅ Un número" : "❌ Un número";
+
+            document.getElementById("req-simbolo").textContent =
+                /[\W_]/.test(password) ? "✅ Un símbolo (@#$...)" : "❌ Un símbolo (@#$...)";
+        }
+    </script>
+</body>
+</html>

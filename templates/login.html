@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Iniciar Sesión</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .login-container {
+            background-color: white;
+            padding: 30px 40px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 380px;
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        input[type="email"], input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 15px;
+        }
+        button {
+            width: 100%;
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px;
+            border: none;
+            font-weight: bold;
+            font-size: 15px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .error {
+            color: red;
+            margin-bottom: 15px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .ayuda {
+            margin-top: 14px;
+            font-size: 14px;
+            color: #555;
+            text-align: center;
+        }
+        .ayuda span {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h2>Iniciar Sesión</h2>
+        {% with messages = get_flashed_messages(category_filter=["error"]) %}
+          {% if messages %}
+            <div class="error">
+              {% for msg in messages %}
+                <p>{{ msg }}</p>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('login') }}">
+            <input type="email" name="email" placeholder="Correo electrónico" required>
+            <input type="password" name="password" placeholder="Contraseña" required>
+            <button type="submit">Entrar</button>
+        </form>
+
+        <div class="ayuda">
+            🔒 ¿Olvidaste tu contraseña?<br>
+            <span>Contacta a un administrador para restablecerla.</span>
+        </div>
+    </div>
+</body>
+</html>

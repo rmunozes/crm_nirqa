@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Editar Cliente</h2>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <ul>
+      {% for category, message in messages %}
+        <li style="color: {% if category == 'success' %}green{% else %}red{% endif %}; font-weight: bold;">
+          {{ message }}
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+{% endwith %}
+
+<style>
+  .form-container {
+    max-width: 500px;
+    padding: 30px;
+    background: #f9f9f9;
+    border-radius: 8px;
+    box-shadow: 0px 2px 8px rgba(0,0,0,0.1);
+    margin: 0 auto;
+  }
+
+  .form-container label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 6px;
+    margin-top: 15px;
+  }
+
+  .form-container input[type="text"],
+  .form-container input[type="email"] {
+    width: 100%;
+    padding: 8px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+  }
+
+  .form-container .button {
+    margin-top: 20px;
+    padding: 10px 20px;
+    font-weight: bold;
+    border: none;
+    border-radius: 4px;
+    color: white;
+    background-color: #4CAF50;
+    cursor: pointer;
+  }
+
+  .form-container .button-secondary {
+    background-color: #ccc;
+    margin-left: 10px;
+    color: black;
+    text-decoration: none;
+    padding: 10px 20px;
+    display: inline-block;
+  }
+
+  .form-container .button:hover,
+  .form-container .button-secondary:hover {
+    opacity: 0.9;
+  }
+</style>
+
+<div class="form-container">
+  <form method="POST">
+    <label>Cliente:</label>
+    <input type="text" name="nombre" value="{{ cliente['nombre'] }}" required>
+
+    <label>Dirección:</label>
+    <input type="text" name="direccion" value="{{ cliente['direccion'] }}">
+
+    <label>Teléfono:</label>
+    <input type="text" name="telefono" value="{{ cliente['telefono'] }}">
+
+    <label>Email:</label>
+    <input type="email" name="email" value="{{ cliente['email'] }}">
+
+    <label>Persona de Contacto:</label>
+    <input type="text" name="contacto" value="{{ cliente['contacto_principal'] }}">
+
+    <button type="submit" class="button">Guardar Cambios</button>
+    <a href="{{ url_for('admin_clientes') }}" class="button-secondary">← Volver</a>
+  </form>
+</div>
+{% endblock %}

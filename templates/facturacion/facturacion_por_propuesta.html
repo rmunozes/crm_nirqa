@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h2>Detalle de Facturación - Propuesta {{ id_propuesta }}</h2>
+
+  <h3>Órdenes de Compra</h3>
+  {% if ordenes %}
+    <table>
+      <tr>
+        <th>Nro OC</th>
+        <th>Fecha</th>
+        <th>Monto</th>
+        <th>Moneda</th>
+        <th>PM Asignado</th>
+      </tr>
+      {% for oc in ordenes %}
+      <tr>
+        <td>{{ oc.nro_oc }}</td>
+        <td>{{ oc.fecha_oc }}</td>
+        <td>{{ oc.monto_oc }}</td>
+        <td>{{ oc.moneda }}</td>
+        <td>{{ oc.pm_asignado }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p>No hay órdenes de compra para esta propuesta.</p>
+  {% endif %}
+
+  <h3>Facturas</h3>
+  {% if facturas %}
+    <table>
+      <tr>
+        <th>Nro Factura</th>
+        <th>Fecha</th>
+        <th>Monto</th>
+      </tr>
+      {% for f in facturas %}
+      <tr>
+        <td>{{ f.nro_factura }}</td>
+        <td>{{ f.fecha_factura }}</td>
+        <td>{{ f.monto_factura }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p>No hay facturas para esta propuesta.</p>
+  {% endif %}
+
+  <br>
+  <a href="{{ url_for('facturacion_index') }}" class="button volver">← Volver</a>
+{% endblock %}
+
+

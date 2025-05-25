@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Editar Usuario</h2>
+
+<form method="POST">
+    <label for="nombre">Nombre:</label>
+    <input type="text" name="nombre" value="{{ usuario['nombre'] }}" required>
+
+    <label for="email">Email:</label>
+    <input type="email" name="email" value="{{ usuario['email'] }}" required>
+
+    <label for="rol">Rol:</label>
+    <select name="rol" required>
+        {% for rol in roles %}
+            <option value="{{ rol }}" {% if usuario['rol'] == rol %}selected{% endif %}>{{ rol.replace('_', ' ').title() }}</option>
+        {% endfor %}
+    </select>
+
+    <br><br>
+    <button type="submit" class="button">Guardar Cambios</button>
+    <a href="{{ url_for('admin_usuarios') }}" class="button button-cancel">Cancelar</a>
+</form>
+{% endblock %}

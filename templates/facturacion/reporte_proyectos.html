@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h2>Reporte de Proyectos</h2>
+
+  <div style="margin-bottom: 15px;">
+    <a href="{{ url_for('facturacion_index') }}"
+       style="padding: 6px 12px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px;">
+      ↩ Volver a Facturación
+    </a>
+  </div>
+
+  <div style="margin-bottom: 15px;">
+
+    <a href="{{ url_for('descargar_reporte_proyectos_excel', sort=sort, order=order) }}" class="btn btn-outline-light">
+      📥 Descargar en Excel
+    </a>
+
+
+  </div>
+
+  {% if reporte %}
+    <table border="1" cellpadding="5">
+      <tr>
+        {% set current_sort = sort %}
+        {% set current_order = order %}
+        {% for col, label in [
+          ('id_propuesta', 'ID Oportunidad'),
+          ('cliente', 'Cliente'),
+          ('cliente_final', 'Cliente Final'),
+          ('nombre_oportunidad', 'Nombre de la Oportunidad'),
+          ('fecha_booking', 'Fecha Booking'),
+          ('total_soles', 'Total S/'),
+          ('total_dolares', 'Total US$')
+        ] %}
+
+
+          <th style="color: #004366;">
+            <a href="{{ url_for('facturacion_reporte_proyectos', sort=col, order='asc' if current_sort != col or current_order == 'desc' else 'desc') }}"
+               style="text-decoration: none; color: inherit;">
+              {{ label }}
+              {% if current_sort == col %}
+                {% if current_order == 'asc' %}▲{% else %}▼{% endif %}
+              {% endif %}
+            </a>
+          </th>
+        {% endfor %}
+      </tr>
+
+      {% for fila in reporte %}
+        <tr>
+          <td>{{ fila.id_propuesta }}</td>
+          <td>{{ fila.cliente }}</td>
+          <td>{{ fila.cliente_final }}</td>
+          <td>{{ fila.nombre_oportunidad }}</td>
+          <td>
+            {% if fila.fecha_booking %}
+              {{ fila.fecha_booking | datetimeformat('%d/%m/%Y') }}
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td style="text-align: right;">{{ "{:,.2f}".format(fila.total_soles or 0) }}</td>
+          <td style="text-align: right;">{{ "{:,.2f}".format(fila.total_dolares or 0) }}</td>
+        </tr>
+
+
+
+      {% endfor %}
+
+      <!-- ✅ TOTAL GENERAL solo una vez -->
+      <tr style="font-weight: bold; background-color: #f3f3f3;">
+        <td colspan="4" style="text-align: right;">TOTAL GENERAL:</td>
+        <td style="text-align: right;">S/. {{ "{:,.2f}".format(total_general_soles or 0) }}</td>
+        <td style="text-align: right;">US$ {{ "{:,.2f}".format(total_general_dolares or 0) }}</td>
+
+
+      </tr>
+    </table>
+  {% else %}
+    <p>No hay proyectos registrados.</p>
+  {% endif %}
+{% endblock %}

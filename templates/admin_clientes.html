@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Administración de Clientes{% endblock %}
+
+{% block content %}
+  <h2>Administración de Clientes</h2>
+
+  <a href="{{ url_for('nuevo_cliente') }}" class="button" style="margin-bottom: 15px;">➕ Crear Nuevo Cliente</a>
+
+  <table border="1" cellpadding="8" cellspacing="0">
+    <thead>
+      <tr>
+        <th>Cliente</th>
+        <th>Dirección</th>
+        <th>Teléfono</th>
+        <th>Email</th>
+        <th>Contacto</th>
+        <!-- Más columnas si agregas nuevos campos -->
+      </tr>
+    </thead>
+    <tbody>
+      {% for cliente in clientes %}
+      <tr>
+        <td>
+            <a href="{{ url_for('editar_cliente', id=cliente['id']) }}" style="text-decoration:none; font-weight:bold;">
+              {{ cliente['nombre'] }}
+            </a>
+        </td>
+
+        <td>{{ cliente['direccion'] }}</td>
+        <td>{{ cliente['telefono'] }}</td>
+        <td>{{ cliente['email'] }}</td>
+        <td>{{ cliente['contacto_principal'] }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <br>
+  <a href="{{ url_for('index') }}" class="button button volver">← Volver</a>
+{% endblock %}

@@ -1,0 +1,94 @@
+  {% extends 'base.html' %}
+
+{% block content %}
+
+  <div style="margin-bottom: 20px;">
+    <a href="{{ url_for('facturacion_index') }}"
+       style="padding: 6px 12px; background-color: #6c757d; color: white; text-decoration: none; border-radius: 4px;">
+      ← Volver al resumen
+    </a>
+  </div>
+
+  <h2>Importar Factura desde XML SUNAT</h2>
+
+  <form id="upload-form" method="POST" enctype="multipart/form-data">
+    <div id="drop-zone"
+         style="border: 2px dashed #007bff; padding: 40px; text-align: center; border-radius: 8px; margin-bottom: 20px;">
+      📂 <strong>Arrastra aquí un archivo XML</strong><br>
+      o haz clic para seleccionarlo<br><br>
+      <input type="file" name="archivo_xml" id="file-input" accept=".xml" style="display: none;">
+      <span id="file-name" style="font-style: italic; color: gray;"></span>
+    </div>
+
+    <button type="submit"
+            style="background-color: #007bff; color: white; padding: 8px 16px; border: none; border-radius: 4px;">
+      📄 Procesar XML
+    </button>
+
+    {% if error %}
+    <div style="color: red; font-weight: bold; margin-top: 16px;">
+      ⚠️ {{ error }}
+    </div>
+    {% endif %}
+  </form>
+
+  {% if datos %}
+    <hr>
+    <h3>Datos detectados:</h3>
+    <form method="POST" action="{{ url_for('registrar_factura_desde_xml') }}">
+      <label>Número de Factura:</label><br>
+      <input type="text" name="nro_factura" value="{{ datos.nro_factura }}" readonly><br><br>
+
+      <label>Fecha de Factura:</label><br>
+      <input type="date" name="fecha_factura" value="{{ datos.fecha_factura }}"><br><br>
+
+      <label>Número de OC:</label><br>
+      <input type="text" name="nro_oc" value="{{ datos.nro_oc }}"><br><br>
+
+      <label>Monto sin IGV:</label><br>
+      <input type="text" name="monto_factura" value="{{ datos.monto_factura }}"><br><br>
+
+      <label>ID de Oportunidad (completar si no se detectó automáticamente):</label><br>
+      <input type="text" name="id_propuesta" value="{{ datos.id_propuesta }}"><br><br>
+
+      <button type="submit" style="background-color: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 4px;">
+        ✅ Registrar Factura
+      </button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+  const fileNameSpan = document.getElementById('file-name');
+
+  dropZone.addEventListener('click', () => fileInput.click());
+
+  dropZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropZone.style.backgroundColor = '#e6f3ff';
+  });
+
+  dropZone.addEventListener('dragleave', e => {
+    dropZone.style.backgroundColor = '';
+  });
+
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.style.backgroundColor = '';
+    const files = e.dataTransfer.files;
+    if (files.length) {
+      fileInput.files = files;
+      fileNameSpan.textContent = `Archivo: ${files[0].name}`;
+    }
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length > 0) {
+      fileNameSpan.textContent = `Archivo: ${fileInput.files[0].name}`;
+    }
+  });
+</script>
+{% endblock %}

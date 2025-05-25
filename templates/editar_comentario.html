@@ -1,0 +1,53 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Comentarios de la Propuesta</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        textarea {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            margin-bottom: 20px;
+        }
+        .readonly-area {
+            background-color: #f0f0f0;
+            color: #333;
+        }
+        .button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .volver {
+            display: inline-block;
+            margin-top: 15px;
+            text-decoration: none;
+            background-color: #ccc;
+            padding: 10px 16px;
+            border-radius: 4px;
+            color: black;
+        }
+    </style>
+</head>
+<body>
+    <h2>Comentarios de la Propuesta {{ propuesta.id }}</h2>
+
+    <label>Historial de Comentarios:</label>
+    <textarea class="readonly-area" rows="10" readonly>{{ propuesta.comentarios or "Sin comentarios previos" }}</textarea>
+
+    <form method="POST">
+        <label for="nuevo_comentario">Agregar nuevo comentario:</label>
+        <textarea name="nuevo_comentario" rows="4" required></textarea>
+        <button type="submit" class="button">Guardar Comentario</button>
+    </form>
+
+    <a href="{{ url_for('index') }}" class="volver">← Volver</a>
+</body>
+</html>
