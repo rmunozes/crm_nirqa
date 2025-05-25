@@ -5,21 +5,22 @@
 
 {% block header_buttons %}
   {% if tiene_permiso("nueva_propuesta") %}
-    <a href="{{ url_for('agregar_propuesta') }}" class="button">➕ Nueva Propuesta</a>
+    <a href="{{ url_for('agregar_propuesta') }}" class="btn">➕ Nueva Propuesta</a>
   {% endif %}
 
   {% if tiene_permiso("admin_usuarios") %}
-    <a href="{{ url_for('admin_usuarios') }}" class="button admin-button">👥 Administración de Usuarios</a>
+    <a href="{{ url_for('admin_usuarios') }}" class="btn btn-blue">👥 Administración de Usuarios</a>
   {% endif %}
 
   {% if tiene_permiso("admin_clientes") %}
-    <a href="{{ url_for('admin_clientes') }}" class="button admin-button">🏢 Administración de Clientes</a>
+    <a href="{{ url_for('admin_clientes') }}" class="btn btn-blue">🏢 Administración de Clientes</a>
   {% endif %}
 
   {% if tiene_permiso("facturacion") %}
-    <a href="{{ url_for('facturacion_index') }}" class="button facturacion-button">🧾 Facturación</a>
+    <a href="{{ url_for('facturacion_index') }}" class="btn btn-orange">🧾 Facturación</a>
   {% endif %}
 {% endblock %}
+
 
 
 {% block content %}
