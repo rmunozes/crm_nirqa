@@ -1754,6 +1754,7 @@ def recargar_propuestas():
     except Exception as e:
         return f"❌ Error al recargar propuestas: {e}", 500
 
+# Trigger rebuild en Render
 
 
 app.jinja_env.globals.update(tiene_permiso=tiene_permiso)
