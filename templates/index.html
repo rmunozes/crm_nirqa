@@ -10,16 +10,6 @@
 
 
 
-  {% if session.get("rol") == "administrador" %}
-    <form method="POST" action="{{ url_for('recargar_propuestas') }}"
-          onsubmit="return confirm('¿Deseas recargar las propuestas desde el archivo Excel?');"
-          style="display: inline-block; margin-left: 10px;">
-      <button type="submit" class="button" style="background-color: #d9534f;">
-        🔁 Recargar Propuestas
-      </button>
-    </form>
-  {% endif %}
-
 
 
 

@@ -1741,21 +1741,6 @@ from functools import wraps
 from flask import redirect, url_for, session
 
 
-@app.route("/admin/recargar_propuestas", methods=["POST"])
-def recargar_propuestas():
-    if session.get("rol") != "administrador":
-        return "Acceso denegado", 403
-
-    try:
-        from cargar_propuestas_excel import cargar_propuestas_desde_excel
-
-        cargar_propuestas_desde_excel(confirmar=False)
-        return "✅ Propuestas recargadas exitosamente"
-    except Exception as e:
-        return f"❌ Error al recargar propuestas: {e}", 500
-
-# Trigger rebuild en Render
-
 
 app.jinja_env.globals.update(tiene_permiso=tiene_permiso)
 app.jinja_env.globals.update(puede_editar_propuesta=puede_editar_propuesta)
