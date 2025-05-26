@@ -162,6 +162,8 @@
 
 {% block scripts %}
 {{ super() }}
+<script src="{{ url_for('static', filename='js/facturacion.js') }}"></script>
+
 <script>
   function toggleDetalles(idPropuesta) {
     const contenedor = document.getElementById("detalles-" + idPropuesta);

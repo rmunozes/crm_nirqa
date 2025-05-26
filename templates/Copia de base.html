@@ -1,140 +1,97 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>{% block title %}CRM{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CRM NIRQA{% endblock %}</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            padding: 20px;
-            background-color: #f8f8f8;
-        }
-        header {
-            margin-bottom: 20px;
-        }
-        header .usuario {
-            text-align: right;
+            margin: 20px;
             font-size: 14px;
-            margin-bottom: 10px;
         }
-        .button {
-            background-color: #4CAF50;
-            color: white;
-            padding: 8px 14px;
+
+        h1 {
+            color: #333;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th, td {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        /* Evita que tablas grandes rompan el diseño */
+        .table-wrapper {
+            overflow-x: auto;
+            max-width: 100%;
+        }
+
+        /* Botones */
+        .btn {
+            display: inline-block;
+            padding: 8px 16px;
+            margin: 5px 5px 15px 0;
             border: none;
             border-radius: 4px;
             text-decoration: none;
-            font-weight: bold;
+            color: white;
+            background-color: #28a745;
             cursor: pointer;
-            margin-right: 10px;
-            margin-bottom: 8px;
         }
-        .button:hover {
+
+        .btn-blue {
+            background-color: #007bff;
+        }
+
+        .btn-orange {
+            background-color: #fd7e14;
+        }
+
+        .volver-button {
+            background-color: #e0e0e0;
+            color: black;
+            border: 1px solid #bcbcbc;
+        }
+
+        .btn:hover {
             opacity: 0.9;
         }
-        .admin-button {
-            background-color: #007BFF;
+
+        input[type="text"],
+        input[type="date"],
+        input[type="number"],
+        select {
+            padding: 5px 8px;
+            margin: 4px 2px;
+            font-size: 13px;
+            max-width: 180px;
         }
 
-        .facturacion-button {
-    background-color: #FF8800; /* Naranja fuerte */
-    }
-
-        .facturacion-button:hover {
-    background-color: #e17000;
-}
-
-        main {
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.05);
-        }
-        main h1 {
-            margin-top: 0;
-            margin-bottom: 16px;
-        }
-        form {
-            margin-bottom: 20px;
-        }
-        .filtros-wrapper {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            row-gap: 14px;
-            margin-bottom: 18px;
-        }
-        .filtros-wrapper input,
-        .filtros-wrapper select {
-            flex: 1 1 220px;
-            min-width: 180px;
-        }
-        .filtros-wrapper label {
-            margin-right: 6px;
-            white-space: nowrap;
-        }
-        form button[type="submit"] {
-            margin-top: 10px;
-            padding: 8px 16px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 16px;
-        }
-        table th,
-        table td {
-            padding: 8px 10px;
-            text-align: left;
+        fieldset {
             font-size: 14px;
-            border-bottom: 1px solid #ddd;
         }
-
-        .button.volver {
-            background-color: #cccccc;
-            color: white;
-            font-weight: bold;
-            padding: 8px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            text-decoration: none;
-        }
-        .button.volver:hover {
-            background-color: #888;
-        }
-
     </style>
 </head>
 <body>
+
     <header>
-        {% if session['usuario_id'] %}
-            <div class="usuario">
-                Bienvenido, <strong>{{ session['nombre'] }}</strong> ({{ session['rol'] }})
-                | <a href="{{ url_for('logout') }}">Cerrar sesión</a>
-            </div>
-        {% endif %}
-        {% block header_buttons %}{% endblock %}
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+        {% block header_buttons %}
+          <a href="{{ url_for('index') }}" class="btn volver-button">⏪ Volver</a>
+        {% endblock %}
+      </div>
     </header>
 
-    <main>
-
-{% if mostrar_volver %}
-  <a href="{{ url_for('index') }}"
-     style="position: absolute; top: 16px; left: 16px; background-color: #6c757d; color: white;
-            text-decoration: none; padding: 6px 12px; border-radius: 4px;">
-    ← Volver
-  </a>
-{% endif %}
-
-
-        {% block content %}{% endblock %}
-    </main>
-    {% block scripts %}
-    <script src="{{ url_for('static', filename='js/facturacion.js') }}"></script>
-    {% endblock %}
+    {% block content %}{% endblock %}
 </body>
 </html>
-
-
