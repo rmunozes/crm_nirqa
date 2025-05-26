@@ -5,7 +5,7 @@
 {% block content %}
   <h2>Administración de Clientes</h2>
 
-  <a href="{{ url_for('nuevo_cliente') }}" class="button" style="margin-bottom: 15px;">➕ Crear Nuevo Cliente</a>
+  <a href="{{ url_for('nuevo_cliente') }}" class="btn btn-blue" style="margin-bottom: 15px;">➕ Crear Nuevo Cliente</a>
 
   <table border="1" cellpadding="8" cellspacing="0">
     <thead>
@@ -37,5 +37,5 @@
   </table>
 
   <br>
-  <a href="{{ url_for('index') }}" class="button button volver">← Volver</a>
+  <a href="{{ url_for('index') }}" class="button button volver  ">← Volver</a>
 {% endblock %}
