@@ -303,6 +303,7 @@ def generar_password_segura():
     caracteres = string.ascii_letters + string.digits + "!@#$%&*"
     return ''.join(secrets.choice(caracteres) for _ in range(12))
 
+
 @app.route("/usuarios/nuevo", methods=["GET", "POST"])
 def crear_usuario():
     if "usuario_id" not in session:
@@ -344,42 +345,8 @@ def crear_usuario():
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM usuarios WHERE email = ?", (email,))
-        usuario_existente = cursor.fetchone()
-
-        if usuario_existente:
-            if usuario_existente["activo"] == 1:
-                flash("Ya existe un usuario activo con ese email", "error")
-            else:
-                # Reactivar y actualizar el usuario eliminado
-
-                # Generar contraseña si no se escribió
-                if not password:
-                    password = generar_password_segura()
-                    mostrar_password = True
-                else:
-                    mostrar_password = False
-
-                if not es_password_segura(password):
-                    flash(
-                        "La contraseña debe tener al menos 8 caracteres, incluir mayúsculas, minúsculas, números y símbolos.",
-                        "error")
-                    return redirect(request.url)
-
-                password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
-
-                cursor.execute("""
-                    UPDATE usuarios
-                    SET nombre = ?, password = ?, rol = ?, activo = 1, ultima_actualizacion_password = ?
-                    WHERE id = ?
-                """, (nombre, password_hash, rol, fecha_actualizacion, usuario_existente["id"]))
-                conn.commit()
-                flash("Usuario reactivado exitosamente", "ok")
-                if mostrar_password:
-                    flash(f"Contraseña temporal generada para {email}: {password}", "info")
-
-
-
-
+        if cursor.fetchone():
+            flash("Ya existe un usuario con ese email", "error")
         else:
             cursor.execute("""
                 INSERT INTO usuarios (nombre, email, password, rol, activo, ultima_actualizacion_password)
@@ -389,7 +356,6 @@ def crear_usuario():
             flash("Usuario creado exitosamente", "ok")
             if mostrar_password:
                 flash(f"Contraseña temporal generada para {email}: {password}", "info")
-
         conn.close()
 
     return render_template("nuevo_usuario.html", roles=ROLES, password_generada=password if mostrar_password else "")
@@ -471,67 +437,50 @@ def cambiar_password(id):
     return render_template("cambiar_password.html", usuario=usuario)
 
 
-@app.route("/usuarios/editar/<int:usuario_id>", methods=["GET", "POST"])
-def editar_usuario(usuario_id):
+
+@app.route("/usuarios/editar/<int:id>", methods=["GET", "POST"])
+def editar_usuario(id):
     if "usuario_id" not in session:
         return redirect(url_for("login"))
-    if session.get("rol") != "administrador":
-        flash("Acceso denegado: solo administradores pueden editar usuarios", "error")
-        return redirect(url_for("index"))
 
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM usuarios WHERE id = ?", (usuario_id,))
+    cursor.execute("SELECT * FROM usuarios WHERE id = ?", (id,))
     usuario = cursor.fetchone()
 
     if not usuario:
+        flash("Usuario no encontrado.", "error")
         conn.close()
-        flash("Usuario no encontrado", "error")
         return redirect(url_for("admin_usuarios"))
 
     if request.method == "POST":
         nombre = request.form.get("nombre")
         email = request.form.get("email")
-        password = request.form.get("password")
         rol = request.form.get("rol")
-        activo = 1 if request.form.get("activo") == "1" else 0
 
-        # Verificar si el email está siendo usado por otro usuario
-        cursor.execute("SELECT * FROM usuarios WHERE email = ? AND id != ?", (email, usuario_id))
-        otro = cursor.fetchone()
-        if otro:
+        # Verificar si otro usuario ya tiene el mismo correo
+        cursor.execute("SELECT id FROM usuarios WHERE email = ? AND id != ?", (email, id))
+        existente = cursor.fetchone()
+        if existente:
+            flash("Ya existe otro usuario con ese correo electrónico.", "error")
             conn.close()
-            flash("Ya existe otro usuario con ese correo", "error")
-            return redirect(request.url)
+            return redirect(url_for("editar_usuario", id=id))
 
-        # Actualizar contraseña si fue ingresada
-        if password:
-            if not es_password_segura(password):
-                conn.close()
-                flash("La contraseña debe tener al menos 8 caracteres, incluir mayúsculas, minúsculas, números y símbolos.", "error")
-                return redirect(request.url)
-            password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
+        try:
             cursor.execute("""
-                UPDATE usuarios
-                SET nombre = ?, email = ?, password = ?, rol = ?, activo = ?, ultima_actualizacion_password = ?
-                WHERE id = ?
-            """, (nombre, email, password_hash, rol, activo, datetime.now().date(), usuario_id))
-        else:
-            # Sin cambio de contraseña
-            cursor.execute("""
-                UPDATE usuarios
-                SET nombre = ?, email = ?, rol = ?, activo = ?
-                WHERE id = ?
-            """, (nombre, email, rol, activo, usuario_id))
+                UPDATE usuarios SET nombre = ?, email = ?, rol = ? WHERE id = ?
+            """, (nombre, email, rol, id))
+            conn.commit()
+            flash("Usuario actualizado exitosamente.", "success")
+        except sqlite3.IntegrityError:
+            flash("Ocurrió un error al actualizar el usuario. Verifica los datos.", "error")
+        finally:
+            conn.close()
 
-        conn.commit()
-        conn.close()
-        flash("Usuario actualizado exitosamente", "ok")
         return redirect(url_for("admin_usuarios"))
 
     conn.close()
     return render_template("editar_usuario.html", usuario=usuario, roles=ROLES)
-
 
 
 @app.route("/clientes")

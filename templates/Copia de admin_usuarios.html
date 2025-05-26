@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -12,13 +13,10 @@
             margin-top: 10px;
         }
         th, td {
-            padding: 4px 6px;
-            font-size: 14px;
-            line-height: 1.2;
+            padding: 10px;
             text-align: left;
             border-bottom: 1px solid #ddd;
         }
-
         .acciones a {
             margin-right: 10px;
             text-decoration: none;
@@ -39,9 +37,10 @@
             margin-bottom: 20px;
         }
         .button-secondary {
-            background-color: #CCC;
-            color: white;
+        background-color: #CCC;  /* gris suave */
+        color: white;
         }
+
     </style>
 </head>
 <body>
@@ -56,42 +55,40 @@
                 <th>Email</th>
                 <th>Rol</th>
                 <th>Estado</th>
-                <th>Cambiar contraseña</th>
-                <th>Eliminar</th>
-
+                <th>Acciones</th>
             </tr>
         </thead>
         <tbody>
             {% for usuario in usuarios %}
             <tr>
                 <td>
-                    <a href="{{ url_for('editar_usuario', usuario_id=usuario.id) }}" style="text-decoration:none; font-weight:bold;">
-                        {{ usuario.nombre }}
-                    </a>
+                  <a href="{{ url_for('editar_usuario', id=usuario.id) }}" style="text-decoration:none; font-weight:bold;">
+                    {{ usuario.nombre }}
+                  </a>
                 </td>
                 <td>{{ usuario.email }}</td>
                 <td>{{ usuario.rol }}</td>
                 <td>{{ "Activo" if usuario.activo else "Inactivo" }}</td>
-
-                <td>
-                    <a href="{{ url_for('cambiar_password', id=usuario.id) }}" style="font-size: 13px; text-decoration: none;">✏ Cambiar contraseña</a>
-                </td>
-                <td>
-                    <form method="POST" action="{{ url_for('eliminar_usuario', id=usuario.id) }}" onsubmit="return confirm('¿Seguro que deseas eliminar este usuario?');" style="margin:0;">
-                        <button type="submit" style="background:none; border:none; color:#c00; cursor:pointer; font-size:13px;">🗑 Eliminar</button>
+                <td class="acciones">
+                    <a href="{{ url_for('cambiar_password', id=usuario.id) }}">✏ Cambiar contraseña</a>
+                    <form method="POST" action="{{ url_for('eliminar_usuario', id=usuario.id) }}" style="display:inline;" onsubmit="return confirm('¿Seguro que deseas eliminar este usuario?');">
+                        <button type="submit" style="background:none; border:none; color:#c00; cursor:pointer;">🗑 Eliminar</button>
                     </form>
                 </td>
-
-
             </tr>
             {% endfor %}
         </tbody>
     </table>
 
+    <!-- Botón Volver -->
     <div style="margin-top: 30px;">
+
         <a href="{{ url_for('index') }}" class="button button-secondary" style="text-decoration: none;">
             ← Volver
         </a>
+
     </div>
+
+
 </body>
 </html>
