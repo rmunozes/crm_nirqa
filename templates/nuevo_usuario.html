@@ -52,7 +52,17 @@
         <div><label>Email:</label> <input type="email" name="email" required></div>
         <div>
             <label>Contraseña:</label>
-            <input type="text" name="password" id="password" value="{{ password_generada or '' }}" readonly style="background-color: #eee; color: #555;">
+            {% if password_generada %}
+              <!-- Si la contraseña fue generada automáticamente, mostrarla como texto readonly -->
+              <input type="text" name="password" id="password" value="{{ password_generada }}" readonly style="background-color: #eee; color: #555;">
+            {% else %}
+              <!-- Si no se generó, permitir escribirla manualmente -->
+              <input type="password" name="password" id="password" placeholder="Escribe una contraseña segura" oninput="verificarPassword();">
+              <label style="font-size: 13px; margin-left: 5px;">
+                <input type="checkbox" onclick="togglePassword()"> Mostrar
+              </label>
+            {% endif %}
+
 
             <ul id="requisitos-password">
                 <li id="req-largo">❌ Al menos 8 caracteres</li>
@@ -114,5 +124,15 @@
                 /[\W_]/.test(password) ? "✅ Un símbolo (@#$...)" : "❌ Un símbolo (@#$...)";
         }
     </script>
+
+    <script>
+      function togglePassword() {
+        const campo = document.getElementById("password");
+        if (campo.hasAttribute("readonly")) return; // no cambia si es autogenerada
+        campo.type = campo.type === "password" ? "text" : "password";
+      }
+    </script>
+
+
 </body>
 </html>

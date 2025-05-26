@@ -311,31 +311,28 @@ def crear_usuario():
         flash("Acceso denegado: solo administradores pueden crear usuarios", "error")
         return redirect(url_for("index"))
 
-    # ✅ Inicializar valores por defecto
     mostrar_password = False
     password = ""
 
     if request.method == "POST":
         nombre = request.form.get("nombre")
         email = request.form.get("email")
-        password = request.form.get("password")
         rol = request.form.get("rol")
+        password_form = request.form.get("password", "").strip()
 
         if not (nombre and email and rol):
             flash("Todos los campos excepto la contraseña son obligatorios", "error")
             return redirect(request.url)
 
-        # Si el admin no escribe contraseña, generar una segura
-        if not password:
+        if not password_form:
             password = generar_password_segura()
             mostrar_password = True
         else:
+            password = password_form
             mostrar_password = False
 
-        # Validar si es segura (sea escrita o generada)
-        if password and not es_password_segura(password):
-            flash("La contraseña debe tener al menos 8 caracteres, incluir mayúsculas, minúsculas, números y símbolos.",
-                  "error")
+        if not es_password_segura(password):
+            flash("La contraseña debe tener al menos 8 caracteres, incluir mayúsculas, minúsculas, números y símbolos.", "error")
             return redirect(request.url)
 
         password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
@@ -350,23 +347,7 @@ def crear_usuario():
             if usuario_existente["activo"] == 1:
                 flash("Ya existe un usuario activo con ese email", "error")
             else:
-                # Reactivar y actualizar el usuario eliminado
-
-                # Generar contraseña si no se escribió
-                if not password:
-                    password = generar_password_segura()
-                    mostrar_password = True
-                else:
-                    mostrar_password = False
-
-                if not es_password_segura(password):
-                    flash(
-                        "La contraseña debe tener al menos 8 caracteres, incluir mayúsculas, minúsculas, números y símbolos.",
-                        "error")
-                    return redirect(request.url)
-
-                password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
-
+                # Reactivar usuario inactivo
                 cursor.execute("""
                     UPDATE usuarios
                     SET nombre = ?, password = ?, rol = ?, activo = 1, ultima_actualizacion_password = ?
@@ -376,10 +357,6 @@ def crear_usuario():
                 flash("Usuario reactivado exitosamente", "ok")
                 if mostrar_password:
                     flash(f"Contraseña temporal generada para {email}: {password}", "info")
-
-
-
-
         else:
             cursor.execute("""
                 INSERT INTO usuarios (nombre, email, password, rol, activo, ultima_actualizacion_password)
@@ -393,6 +370,7 @@ def crear_usuario():
         conn.close()
 
     return render_template("nuevo_usuario.html", roles=ROLES, password_generada=password if mostrar_password else "")
+
 
 
 @app.route("/admin/usuarios")
@@ -1762,6 +1740,19 @@ def registrar_nc_desde_xml():
 from functools import wraps
 from flask import redirect, url_for, session
 
+
+@app.route("/admin/recargar_propuestas", methods=["POST"])
+def recargar_propuestas():
+    if session.get("rol") != "administrador":
+        return "Acceso denegado", 403
+
+    try:
+        from cargar_propuestas_excel import cargar_propuestas_desde_excel
+
+        cargar_propuestas_desde_excel(confirmar=False)
+        return "✅ Propuestas recargadas exitosamente"
+    except Exception as e:
+        return f"❌ Error al recargar propuestas: {e}", 500
 
 
 
