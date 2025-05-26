@@ -2,11 +2,13 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}CRM NIRQA{% endblock %}</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 20px;
+            font-size: 14px;
         }
 
         h1 {
@@ -67,32 +69,28 @@
 
         input[type="text"],
         input[type="date"],
+        input[type="number"],
         select {
-            padding: 6px;
+            padding: 5px 8px;
             margin: 4px 2px;
-            font-size: 14px;
+            font-size: 13px;
+            max-width: 180px;
         }
 
-
-
-
-
+        fieldset {
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
 
     <header>
       <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
-
         {% block header_buttons %}
           <a href="{{ url_for('index') }}" class="btn volver-button">⏪ Volver</a>
         {% endblock %}
-
-
-
       </div>
     </header>
-
 
     {% block content %}{% endblock %}
 </body>
