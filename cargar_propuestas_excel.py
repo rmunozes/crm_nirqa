@@ -6,7 +6,8 @@ from datetime import datetime
 def cargar_propuestas_desde_excel(confirmar=True):
     # Ruta a la base de datos
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    DB_PATH = os.path.join(BASE_DIR, "../database/crm_database.db")
+    DB_PATH = os.path.join(os.getcwd(), "database", "crm_database.db")
+
     EXCEL_PATH = os.path.join(BASE_DIR, "propuestas_datos_reales.xlsx")
 
     if confirmar:
