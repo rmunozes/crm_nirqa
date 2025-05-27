@@ -36,20 +36,6 @@
   {% endif %}
 {% endwith %}
 
-<!-- Botón solo visible para administradores -->
-{% if session.get("rol") == "administrador" %}
-  <form method="POST"
-        action="{{ url_for('recargar_ordenes_compra') }}"
-        onsubmit="return confirm('¿Deseas recargar las órdenes de compra desde el Excel?');"
-        style="display: inline-block; margin-left: 10px;">
-    <button type="submit" class="button" style="background-color: #5bc0de;">
-      📦 Cargar Órdenes de Compra desde Excel
-    </button>
-  </form>
-{% endif %}
-
-
-
 
 
 
