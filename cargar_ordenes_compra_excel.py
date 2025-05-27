@@ -36,7 +36,16 @@ def cargar_ordenes_compra_desde_excel(confirmar=True):
     cursor.execute("DELETE FROM ordenes_compra")
     conn.commit()
 
+    filas_insertadas = 0
+    filas_ignoradas = 0
+
     for _, row in df.iterrows():
+        monto = float(row["monto_oc"])
+        if monto <= 0:
+            print(f"⚠️ OC ignorada: monto inválido ({monto}) para ID {row['id_oc']}")
+            filas_ignoradas += 1
+            continue
+
         cursor.execute("""
             INSERT INTO ordenes_compra (
                 id_oc, id_propuesta, nro_oc, fecha_oc,
@@ -47,17 +56,18 @@ def cargar_ordenes_compra_desde_excel(confirmar=True):
             str(row["id_propuesta"]),
             str(row["nro_oc"]),
             row["fecha_oc"].isoformat() if pd.notnull(row["fecha_oc"]) else None,
-            float(row["monto_oc"]),
+            monto,
             str(row["pm_asignado"]) if pd.notnull(row["pm_asignado"]) else "",
             str(row["moneda"])
         ))
+        filas_insertadas += 1
 
     conn.commit()
     conn.close()
 
     if not confirmar:
-        print("✅ Ordenes de compra cargadas exitosamente.")
-    return len(df)
+        print(f"✅ Ordenes de compra cargadas exitosamente: {filas_insertadas} insertadas, {filas_ignoradas} ignoradas.")
+    return filas_insertadas
 
 if __name__ == "__main__":
     cargar_ordenes_compra_desde_excel(confirmar=True)
