@@ -36,38 +36,46 @@ def cargar_ordenes_compra_desde_excel(confirmar=True):
     cursor.execute("DELETE FROM ordenes_compra")
     conn.commit()
 
-    filas_insertadas = 0
-    filas_ignoradas = 0
+    contador_ok = 0
+    contador_skip = 0
 
-    for _, row in df.iterrows():
-        monto = float(row["monto_oc"])
-        if monto <= 0:
-            print(f"⚠️ OC ignorada: monto inválido ({monto}) para ID {row['id_oc']}")
-            filas_ignoradas += 1
-            continue
+    for index, row in df.iterrows():
+        try:
+            monto = float(row["monto_oc"])
+            if monto <= 0:
+                print(f"⚠️ OC ignorada (monto inválido <= 0): ID {row['id_oc']}")
+                contador_skip += 1
+                continue
 
-        cursor.execute("""
-            INSERT INTO ordenes_compra (
-                id_oc, id_propuesta, nro_oc, fecha_oc,
-                monto_oc, pm_asignado, moneda
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (
-            int(row["id_oc"]),
-            str(row["id_propuesta"]),
-            str(row["nro_oc"]),
-            row["fecha_oc"].isoformat() if pd.notnull(row["fecha_oc"]) else None,
-            monto,
-            str(row["pm_asignado"]) if pd.notnull(row["pm_asignado"]) else "",
-            str(row["moneda"])
-        ))
-        filas_insertadas += 1
+            cursor.execute("""
+                INSERT INTO ordenes_compra (
+                    id_oc, id_propuesta, nro_oc, fecha_oc,
+                    monto_oc, pm_asignado, moneda
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                int(row["id_oc"]),
+                str(row["id_propuesta"]),
+                str(row["nro_oc"]),
+                row["fecha_oc"].isoformat() if pd.notnull(row["fecha_oc"]) else None,
+                monto,
+                str(row["pm_asignado"]) if pd.notnull(row["pm_asignado"]) else "",
+                str(row["moneda"])
+            ))
+            contador_ok += 1
+        except Exception as e:
+            print(f"❌ Error al procesar OC ID {row.get('id_oc', '?')}: {e}")
+            contador_skip += 1
 
     conn.commit()
     conn.close()
 
+    print(f"✅ OC cargadas correctamente: {contador_ok}")
+    print(f"⚠️ OC omitidas por error o validación: {contador_skip}")
+
     if not confirmar:
-        print(f"✅ Ordenes de compra cargadas exitosamente: {filas_insertadas} insertadas, {filas_ignoradas} ignoradas.")
-    return filas_insertadas
+        print("✅ Carga completada automáticamente.")
+
+    return contador_ok
 
 if __name__ == "__main__":
     cargar_ordenes_compra_desde_excel(confirmar=True)
