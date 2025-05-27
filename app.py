@@ -750,6 +750,10 @@ def facturacion_index():
 
     ordenes, facturas = facturacion_service.obtener_todo_facturacion()
 
+    print("🔍 Total ordenes de compra recibidas:", len(ordenes))
+    for oc in ordenes[:5]:
+        print(f"🧾 OC ID: {oc['id_oc']} | Propuesta: {oc['id_propuesta']} | Monto: {oc['monto_oc']} {oc['moneda']}")
+
     propuestas_completas = leer_propuestas(
         filtros={"status": "Booking"},
         pagina=1,
