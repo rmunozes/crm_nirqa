@@ -1,5 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
 from datetime import date, datetime, timedelta
+from urllib.parse import urlencode
+
 
 from services.propuesta_service import leer_logs_propuesta
 import bcrypt
@@ -750,8 +752,8 @@ def facturacion_index():
 
     propuestas_completas = leer_propuestas(
         filtros={"status": "Booking"},
-        pagina=pagina,
-        filas_por_pagina=filas_por_pagina
+        pagina=1,
+        filas_por_pagina=10000  # trae todas
     )
 
     from services.propuesta_service import leer_logs_propuesta
@@ -845,6 +847,10 @@ def facturacion_index():
     total_propuestas = len(propuestas_filtradas)
     propuestas_paginadas = propuestas_filtradas[offset:offset + filas_por_pagina]
 
+    # Construir el query string sin el parámetro de paginación
+    filtros_sin_pagina = {k: v for k, v in filtros.items() if k != "pagina"}
+    query_string_base = urlencode(filtros_sin_pagina)
+
     return render_template(
         'facturacion/facturacion_index.html',
         ordenes=ordenes,
@@ -852,7 +858,8 @@ def facturacion_index():
         propuestas=propuestas_paginadas,
         pagina_actual=pagina,
         total_paginas=(total_propuestas + filas_por_pagina - 1) // filas_por_pagina,
-        mostrar_volver=True
+        mostrar_volver=True,
+        query_string_base=query_string_base
     )
     print(">> FILTROS ACTIVOS:", filtros)
     print(">> Ejemplo propuesta:",
