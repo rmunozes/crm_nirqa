@@ -1766,6 +1766,22 @@ from flask import redirect, url_for, session
 
 
 
+@app.route("/admin/recargar_oc", methods=["GET"])
+def recargar_ordenes_compra():
+    if session.get("rol") != "administrador":
+        return "Acceso denegado", 403
+
+    try:
+        print("📦 Ejecutando carga de OC desde Excel...")
+        from cargar_ordenes_compra_excel import cargar_ordenes_compra_desde_excel
+        total = cargar_ordenes_compra_desde_excel(confirmar=False)
+        flash(f"✅ Se cargaron {total} órdenes de compra desde Excel.", "success")
+    except Exception as e:
+        flash(f"❌ Error al recargar órdenes de compra: {e}", "error")
+
+    return redirect(url_for("index"))
+
+
 
 app.jinja_env.globals.update(tiene_permiso=tiene_permiso)
 app.jinja_env.globals.update(puede_editar_propuesta=puede_editar_propuesta)
