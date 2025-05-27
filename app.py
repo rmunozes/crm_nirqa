@@ -1773,7 +1773,7 @@ def recargar_ordenes_compra():
 
     try:
         print("📦 Ejecutando carga de OC desde Excel...")
-        from cargar_ordenes_compra_excel import cargar_ordenes_compra_desde_excel
+        from utils.cargar_ordenes_compra_excel import cargar_ordenes_compra_desde_excel
         total = cargar_ordenes_compra_desde_excel(confirmar=False)
         flash(f"✅ Se cargaron {total} órdenes de compra desde Excel.", "success")
     except Exception as e:
