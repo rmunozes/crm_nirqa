@@ -742,8 +742,17 @@ def nueva_orden_compra():
 @app.route('/facturacion')
 def facturacion_index():
     filtros = request.args.to_dict()
+    pagina = int(request.args.get("pagina", 1))
+    filas_por_pagina = 50
+    offset = (pagina - 1) * filas_por_pagina
+
     ordenes, facturas = facturacion_service.obtener_todo_facturacion()
-    propuestas_completas = leer_propuestas({"status": "Booking"})
+
+    propuestas_completas = leer_propuestas(
+        filtros={"status": "Booking"},
+        pagina=pagina,
+        filas_por_pagina=filas_por_pagina
+    )
 
     from services.propuesta_service import leer_logs_propuesta
     from datetime import datetime
@@ -833,12 +842,16 @@ def facturacion_index():
         except Exception as e:
             print("Error al ordenar:", e)
 
+    total_propuestas = len(propuestas_filtradas)
+    propuestas_paginadas = propuestas_filtradas[offset:offset + filas_por_pagina]
 
     return render_template(
         'facturacion/facturacion_index.html',
         ordenes=ordenes,
         facturas=facturas,
-        propuestas=propuestas_filtradas,
+        propuestas=propuestas_paginadas,
+        pagina_actual=pagina,
+        total_paginas=(total_propuestas + filas_por_pagina - 1) // filas_por_pagina,
         mostrar_volver=True
     )
     print(">> FILTROS ACTIVOS:", filtros)

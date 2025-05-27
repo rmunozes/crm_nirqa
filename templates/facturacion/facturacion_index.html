@@ -147,6 +147,25 @@
       {% endfor %}
     </tbody>
   </table>
+
+
+  <!-- Controles de paginación -->
+  <div style="margin-top: 20px; text-align: center;">
+    Página {{ pagina_actual }} de {{ total_paginas }}
+    <div style="margin-top: 10px;">
+      {% if pagina_actual > 1 %}
+        <a href="{{ url_for('facturacion_index', **request.args.to_dict(), pagina=pagina_actual - 1) }}"
+           style="margin-right: 10px; text-decoration: none;">◀ Anterior</a>
+      {% endif %}
+
+      {% if pagina_actual < total_paginas %}
+        <a href="{{ url_for('facturacion_index', **request.args.to_dict(), pagina=pagina_actual + 1) }}"
+           style="text-decoration: none;">Siguiente ▶</a>
+      {% endif %}
+    </div>
+  </div>
+
+
 {% else %}
   <p>No hay propuestas con status Booking.</p>
 {% endif %}
