@@ -1802,6 +1802,29 @@ def descargar_backup(nombre):
         return "Archivo no encontrado", 404
     return send_file(archivo, as_attachment=True)
 
+
+@app.route("/instalar_db_render")
+def instalar_db_render():
+    import shutil, os, sqlite3
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    origen = os.path.join(base_dir, "backups", "base_para_render.sqlite")
+    destino = os.path.join(base_dir, "database", "crm_database.db")
+
+    shutil.copyfile(origen, destino)
+
+    # Verifica si la tabla propuestas existe
+    conn = sqlite3.connect(destino)
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='propuestas'")
+    tabla = cursor.fetchone()
+    conn.close()
+
+    if tabla:
+        return "✅ Base restaurada y tabla 'propuestas' encontrada en Render."
+    else:
+        return "❌ ERROR: la base fue copiada, pero no tiene la tabla 'propuestas'."
+
+
 app.jinja_env.globals.update(tiene_permiso=tiene_permiso)
 app.jinja_env.globals.update(puede_editar_propuesta=puede_editar_propuesta)
 app.jinja_env.filters['datetimeformat'] = lambda value, format='%d/%m/%Y': datetime.strptime(value, "%Y-%m-%d").strftime(format) if value else ''
