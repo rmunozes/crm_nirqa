@@ -1802,17 +1802,6 @@ def descargar_backup(nombre):
         return "Archivo no encontrado", 404
     return send_file(archivo, as_attachment=True)
 
-
-@app.route("/instalar_db_render")
-def instalar_db_render():
-    import shutil, os
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    origen = os.path.join(base_dir, "backups", "base_para_render.sqlite")
-    destino = os.path.join(base_dir, "database", "crm_database.db")
-    shutil.copyfile(origen, destino)
-    return "✅ Base restaurada correctamente en Render."
-
-
 app.jinja_env.globals.update(tiene_permiso=tiene_permiso)
 app.jinja_env.globals.update(puede_editar_propuesta=puede_editar_propuesta)
 app.jinja_env.filters['datetimeformat'] = lambda value, format='%d/%m/%Y': datetime.strptime(value, "%Y-%m-%d").strftime(format) if value else ''
