@@ -1,0 +1,28 @@
+# Ignorar entorno virtual (ajusta el nombre si el tuyo es diferente)
+env/
+venv/
+crm_env/
+
+# Ignorar base de datos local para evitar sobrescritura
+database/crm_database.db
+
+# Ignorar archivos Excel usados para carga masiva
+*.xlsx
+utils/oc_datos_reales.xlsx
+
+# Ignorar archivos temporales o de backup
+*.pyc
+__pycache__/
+*.swp
+*.bak
+.DS_Store
+
+# Archivos de configuración locales (si los tuvieras)
+*.env
+.env
+
+# Ignorar respaldos locales
+backups/
+
+# Backups de base de datos
+/backups/*.sqlite

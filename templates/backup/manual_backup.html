@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Backup Manual{% endblock %}
+
+{% block content %}
+
+  <!-- Mensajes flash de éxito o error -->
+  {% with mensajes = get_flashed_messages(with_categories=true) %}
+    {% if mensajes %}
+      {% for categoria, mensaje in mensajes %}
+        <div style="
+          padding: 10px;
+          margin-bottom: 10px;
+          border-radius: 4px;
+          font-weight: bold;
+          {% if categoria == 'success' %}
+            background-color: #dff0d8;
+            color: #3c763d;
+          {% elif categoria == 'error' %}
+            background-color: #f2dede;
+            color: #a94442;
+          {% else %}
+            background-color: #d9edf7;
+            color: #31708f;
+          {% endif %}
+        ">
+          {{ mensaje }}
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <h2>Backup Manual</h2>
+  <p>Aquí podrás realizar un respaldo de la base de datos o exportar tablas seleccionadas.</p>
+
+  <!-- Botón de backup -->
+  <form method="POST" action="{{ url_for('realizar_backup') }}">
+      <button type="submit" style="
+        background-color: #444;
+        color: white;
+        padding: 8px 16px;
+        font-size: 15px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+      ">⬇️ Crear Backup</button>
+  </form>
+
+  <!-- Lista de backups existentes -->
+  {% if backups %}
+    <h3 style="margin-top: 20px;">Backups disponibles:</h3>
+    <ul>
+      {% for archivo in backups %}
+        <li>
+          {{ archivo }}
+          <a href="{{ url_for('descargar_backup', nombre=archivo) }}" style="margin-left: 10px; text-decoration: underline;">⬇️ Descargar</a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p style="margin-top: 20px;">No hay backups disponibles aún.</p>
+  {% endif %}
+
+  <br>
+  <a href="{{ url_for('index') }}">← Volver al Inicio</a>
+
+{% endblock %}

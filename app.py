@@ -12,7 +12,8 @@ import re
 import secrets
 import string
 import xml.etree.ElementTree as ET
-
+import os
+import shutil
 
 
 def tiene_permiso(accion):
@@ -23,7 +24,8 @@ def tiene_permiso(accion):
         "nueva_propuesta": ["account_manager", "gerente", "director", "administrador"],
         "admin_usuarios": ["administrador"],
         "admin_clientes": ["administrador"],
-        "facturacion": ["gestor", "director", "administrador"]
+        "facturacion": ["gestor", "director", "administrador"],
+        "tools": ["administrador"]
     }
     return rol in permisos.get(accion, [])
 
@@ -1764,23 +1766,41 @@ def registrar_nc_desde_xml():
 from functools import wraps
 from flask import redirect, url_for, session
 
+@app.route("/tools/backup")
+def backup_manual():
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    backups_dir = os.path.join(base_dir, "backups")
+    archivos = os.listdir(backups_dir) if os.path.exists(backups_dir) else []
+    archivos = sorted(archivos, reverse=True)
+    return render_template("backup/manual_backup.html", backups=archivos)
 
 
-@app.route("/admin/recargar_oc", methods=["GET"])
-def recargar_ordenes_compra():
+@app.route("/tools/backup/download", methods=["POST"])
+def realizar_backup():
     if session.get("rol") != "administrador":
         return "Acceso denegado", 403
 
-    try:
-        print("📦 Ejecutando carga de OC desde Excel...")
-        from utils.cargar_ordenes_compra_excel import cargar_ordenes_compra_desde_excel
-        total = cargar_ordenes_compra_desde_excel(confirmar=False)
-        flash(f"✅ Se cargaron {total} órdenes de compra desde Excel.", "success")
-    except Exception as e:
-        flash(f"❌ Error al recargar órdenes de compra: {e}", "error")
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    origen = os.path.join(base_dir, "database", "crm_database.db")
+    backups_dir = os.path.join(base_dir, "backups")
+    os.makedirs(backups_dir, exist_ok=True)
 
-    return redirect(url_for("index"))
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    nombre_backup = f"crm_backup_{timestamp}.sqlite"
+    destino = os.path.join(backups_dir, nombre_backup)
 
+    shutil.copyfile(origen, destino)
+
+    flash(f"✅ Backup creado exitosamente como {nombre_backup}", "success")
+    return redirect(url_for("backup_manual"))
+
+@app.route("/tools/backup/download_file/<nombre>")
+def descargar_backup(nombre):
+    backups_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backups")
+    archivo = os.path.join(backups_dir, nombre)
+    if not os.path.exists(archivo):
+        return "Archivo no encontrado", 404
+    return send_file(archivo, as_attachment=True)
 
 
 app.jinja_env.globals.update(tiene_permiso=tiene_permiso)

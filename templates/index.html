@@ -50,6 +50,20 @@
   {% if tiene_permiso("facturacion") %}
     <a href="{{ url_for('facturacion_index') }}" class="btn btn-orange">🧾 Facturación</a>
   {% endif %}
+
+  {% if tiene_permiso("tools") %}
+    <div class="dropdown" style="display:inline-block; position:relative;">
+      <button class="btn btn-tools">🧰 Tools ▾</button>
+      <div class="dropdown-content">
+        <a href="{{ url_for('backup_manual') }}">📥 Backup</a>
+      </div>
+    </div>
+  {% endif %}
+
+
+
+
+
 {% endblock %}
 
 
@@ -99,6 +113,52 @@
 
   .boton-filtro:hover {
     opacity: 0.9;
+  }
+
+  .dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: white;
+    min-width: 160px;
+    box-shadow: 0px 4px 8px rgba(0,0,0,0.2);
+    padding: 8px 0;
+    z-index: 9999;
+  }
+
+  .dropdown-content a {
+    color: black;
+    padding: 10px 16px;
+    text-decoration: none;
+    display: block;
+  }
+
+  .dropdown-content a:hover {
+    background-color: #f1f1f1;
+  }
+
+  .dropdown:hover .dropdown-content {
+    display: block;
+  }
+
+  .btn.btn-tools {
+    background-color: #444 !important;
+    color: white !important;
+    padding: 6px 14px !important;
+    font-size: 14px !important;
+    font-weight: bold !important;
+    border: none !important;
+    border-radius: 6px !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 38px !important;
+    line-height: normal !important;
+    text-decoration: none !important;
+  }
+
+  .btn.btn-tools:hover {
+    background-color: #333 !important;
   }
 
 
@@ -281,3 +341,25 @@
   </tbody>
 </table>
 {% endblock %}
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll('.dropdown').forEach(drop => {
+      const btn = drop.querySelector('button');
+      const menu = drop.querySelector('.dropdown-content');
+
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation(); // evita que se cierre inmediatamente
+        const alreadyOpen = menu.style.display === 'block';
+        document.querySelectorAll('.dropdown-content').forEach(m => m.style.display = 'none');
+        menu.style.display = alreadyOpen ? 'none' : 'block';
+      });
+
+      window.addEventListener('click', e => {
+        if (!drop.contains(e.target)) {
+          menu.style.display = 'none';
+        }
+      });
+    });
+  });
+</script>
