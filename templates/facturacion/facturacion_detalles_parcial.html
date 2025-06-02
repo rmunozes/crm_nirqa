@@ -71,7 +71,14 @@
 
     <h4 style="margin-top: 20px; margin-bottom: 6px;">🧾 Facturas</h4>
     {% if facturas %}
-      {% set total_factura = facturas | sum(attribute='monto_factura') | float %}
+
+      {% set total_factura = (
+        facturas | map(attribute='monto_factura_soles') | select | sum +
+        facturas | map(attribute='monto_factura_dolares') | select | sum
+      ) %}
+
+
+
       <table border="1" cellpadding="5" cellspacing="0" style="width: 100%; border-collapse: collapse;">
         <tr style="background-color: #eee;">
           <th>Número Factura</th>
@@ -86,7 +93,10 @@
             </a>
           </td>
           <td>{{ f.fecha_factura }}</td>
-          <td style="text-align: right;">{{ "{:,.2f}".format(f.monto_factura | float) }}</td>
+          <td style="text-align: right;">
+            {{ "{:,.2f}".format((f.monto_factura_soles or 0) + (f.monto_factura_dolares or 0)) }}
+          </td>
+
         </tr>
         {% endfor %}
         <tr style="font-weight: bold; background-color: #f2f2f2;">

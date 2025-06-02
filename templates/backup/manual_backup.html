@@ -52,8 +52,11 @@
     <ul>
       {% for archivo in backups %}
         <li>
-          {{ archivo }}
-          <a href="{{ url_for('descargar_backup', nombre=archivo) }}" style="margin-left: 10px; text-decoration: underline;">⬇️ Descargar</a>
+          {{ archivo.nombre }}
+          {% if archivo.fecha %}
+            <small style="color: gray;">({{ archivo.fecha }})</small>
+          {% endif %}
+          <a href="{{ url_for('descargar_backup', nombre=archivo.nombre) }}" style="margin-left: 10px; text-decoration: underline;">⬇️ Descargar</a>
         </li>
       {% endfor %}
     </ul>

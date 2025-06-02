@@ -3,18 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <title>Editar Propuesta</title>
-
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 30px;
         }
-        h1 {
-            margin-bottom: 20px;
-        }
-        form div {
-            margin-bottom: 12px;
-        }
+        h1 { margin-bottom: 20px; }
+        form div { margin-bottom: 12px; }
         label {
             display: inline-block;
             width: 180px;
@@ -26,6 +21,11 @@
         select {
             width: 300px;
             padding: 6px;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
         }
         .button {
             padding: 5px 15px;
@@ -35,39 +35,14 @@
             margin-right: 10px;
             color: white;
         }
-
-        .guardar {
-            background-color: #4CAF50; /* verde */
-        }
-
-        .salir {
-            background-color: #f44336; /* rojo */
-        }
-
-        .button:hover {
-            opacity: 0.9;
-        }
-
+        .guardar { background-color: #4CAF50; }
+        .salir { background-color: #f44336; }
+        .button:hover { opacity: 0.9; }
         .back-link {
             margin-top: 20px;
             display: inline-block;
         }
-        select,
-        input[type="text"],
-        input[type="date"],
-        input[type="number"] {
-            width: 300px;
-            padding: 6px;
-            font-size: 14px;
-            font-family: Arial, sans-serif;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-
     </style>
-
-
 </head>
 <body>
     <h1>Editar Propuesta</h1>
@@ -127,15 +102,23 @@
         <div><label>Cierre en Soles (S/):</label> <input type="number" step="0.01" name="cierre_soles" value="{{ propuesta.cierre_soles }}"></div>
         <div><label>Cierre en Dólares (US$):</label> <input type="number" step="0.01" name="cierre_dolares" value="{{ propuesta.cierre_dolares }}"></div>
 
+        {# ✅ Campos ocultos para conservar filtros originales #}
+        {% for nombre, valor in filtros.items() %}
+            <input type="hidden" name="{{ nombre }}" value="{{ valor }}">
+        {% endfor %}
+
         <div>
             <button type="submit" class="button guardar">Guardar Cambios</button>
-            <a href="{{ url_for('index') }}"><button type="button" class="button salir">Salir sin guardar</button></a>
+            <a href="{{ url_for('index', **filtros) }}">
+                <button type="button" class="button salir">Salir sin guardar</button>
+            </a>
+
+
         </div>
     </form>
 
     <h2>📜 Historial de Cambios</h2>
     {% if logs %}
-
         <ul>
             {% for log in logs %}
                 <li>
@@ -143,13 +126,8 @@
                 </li>
             {% endfor %}
         </ul>
-
-
     {% else %}
         <p>No hay cambios registrados para esta propuesta.</p>
     {% endif %}
-
-
-
 </body>
 </html>

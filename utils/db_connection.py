@@ -6,5 +6,6 @@ def get_db_connection():
     db_path = os.path.join(base_dir, '..', 'database', 'crm_database.db')
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row  # ✅ Esto permite acceder a las columnas por nombre
+    conn.execute("PRAGMA foreign_keys = ON")  # ✅ Activar claves foráneas
     return conn
 

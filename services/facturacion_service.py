@@ -104,27 +104,42 @@ def crear_factura(datos):
         except ValueError:
             return {"ok": False, "error": "Monto inválido"}
 
+        # Validar moneda y asignar al campo correcto
+        moneda = datos.get('moneda')
+        if moneda not in ['S/', 'US$']:
+            return {"ok": False, "error": "Moneda inválida"}
+
+        monto_soles = monto if moneda == 'S/' else None
+        monto_dolares = monto if moneda == 'US$' else None
+
         # Validar no duplicidad de factura en esa OC
-        cursor.execute("SELECT * FROM facturas WHERE id_oc = ? AND nro_factura = ?", (datos['id_oc'], datos['nro_factura']))
+        cursor.execute(
+            "SELECT 1 FROM facturas WHERE id_oc = ? AND nro_factura = ?",
+            (datos['id_oc'], datos['nro_factura'])
+        )
         if cursor.fetchone():
             return {"ok": False, "error": "Ya existe una factura con ese número para esta OC"}
 
-        # Insertar
+        # Insertar en base a la moneda
         cursor.execute("""
-            INSERT INTO facturas (id_oc, nro_factura, monto_factura, fecha_factura)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO facturas (id_oc, nro_factura, monto_factura_soles, monto_factura_dolares, fecha_factura)
+            VALUES (?, ?, ?, ?, ?)
         """, (
             datos['id_oc'],
             datos['nro_factura'],
-            monto,
+            monto_soles,
+            monto_dolares,
             datos['fecha_factura']
         ))
+
         conn.commit()
         return {"ok": True}
+
     except Exception as e:
         return {"ok": False, "error": str(e)}
     finally:
         conn.close()
+
 
 def obtener_todas_oc():
     conn = get_db_connection()
@@ -230,14 +245,31 @@ def crear_nota_credito(datos):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
+        # Validación y separación por moneda
+        try:
+            monto = float(datos["monto_factura"])
+            if monto >= 0:
+                return {"ok": False, "error": "El monto debe ser negativo para una nota de crédito."}
+        except ValueError:
+            return {"ok": False, "error": "Monto inválido"}
+
+        moneda = datos.get("moneda")
+        if moneda not in ["S/", "US$"]:
+            return {"ok": False, "error": "Moneda inválida"}
+
+        monto_soles = monto if moneda == "S/" else None
+        monto_dolares = monto if moneda == "US$" else None
+
+        # Insertar
         cursor.execute("""
-            INSERT INTO facturas (id_oc, nro_factura, fecha_factura, monto_factura)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO facturas (id_oc, nro_factura, fecha_factura, monto_factura_soles, monto_factura_dolares)
+            VALUES (?, ?, ?, ?, ?)
         """, (
             datos["id_oc"],
             datos["nro_factura"],
             datos["fecha_factura"],
-            datos["monto_factura"]
+            monto_soles,
+            monto_dolares
         ))
         conn.commit()
         return {"ok": True}
@@ -245,3 +277,25 @@ def crear_nota_credito(datos):
         return {"ok": False, "error": str(e)}
     finally:
         conn.close()
+
+def actualizar_factura_v2(id_factura, fecha, nro_factura, monto_soles, monto_dolares):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            UPDATE facturas
+            SET fecha_factura = ?, nro_factura = ?, monto_factura_soles = ?, monto_factura_dolares = ?
+            WHERE id_factura = ?
+        """, (fecha, nro_factura, monto_soles, monto_dolares, id_factura))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def obtener_factura(id_factura):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM facturas WHERE id_factura = ?", (id_factura,))
+    factura = cursor.fetchone()
+    conn.close()
+    return factura

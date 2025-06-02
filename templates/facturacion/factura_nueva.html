@@ -20,6 +20,12 @@
   <label for="monto_factura">Monto:</label><br>
   <input type="number" step="0.01" name="monto_factura" value="{{ datos['monto_factura'] if datos else '' }}" required><br><br>
 
+  <label for="moneda">Moneda:</label><br>
+  <select name="moneda" required>
+    <option value="">--Seleccionar moneda--</option>
+    <option value="S/" {% if datos and datos.get('moneda') == 'S/' %}selected{% endif %}>S/ (Soles)</option>
+    <option value="US$" {% if datos and datos.get('moneda') == 'US$' %}selected{% endif %}>US$ (Dólares)</option>
+  </select><br><br>
+
   <button type="submit">Crear Factura</button>
 </form>
-

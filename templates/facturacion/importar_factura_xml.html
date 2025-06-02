@@ -48,6 +48,14 @@
       <label>Monto sin IGV:</label><br>
       <input type="text" name="monto_factura" value="{{ datos.monto_factura }}"><br><br>
 
+      <label>Moneda:</label><br>
+      <select name="moneda" required>
+        <option value="">Seleccionar...</option>
+        <option value="S/" {% if datos.moneda == 'S/' %}selected{% endif %}>S/ (Soles)</option>
+        <option value="US$" {% if datos.moneda == 'US$' %}selected{% endif %}>US$ (Dólares)</option>
+      </select><br><br>
+
+
       <label>ID de Oportunidad (completar si no se detectó automáticamente):</label><br>
       <input type="text" name="id_propuesta" value="{{ datos.id_propuesta }}"><br><br>
 

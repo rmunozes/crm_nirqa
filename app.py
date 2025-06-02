@@ -168,8 +168,10 @@ def index():
     total = contar_propuestas(filtros)
     total_paginas = (total + filas_por_pagina - 1) // filas_por_pagina
 
+
     args_sin_pagina = dict(request.args)
     args_sin_pagina.pop('pagina', None)
+    args_sin_pagina.pop('id', None)  # ✅ evita conflicto de argumento múltiple
 
     return render_template(
         "index.html",
@@ -183,8 +185,6 @@ def index():
         order=order
     )
 
-
-
 @app.route("/propuestas/editar/<string:id>", methods=["GET", "POST"])
 def editar_propuesta(id):
     if "usuario_id" not in session:
@@ -196,12 +196,12 @@ def editar_propuesta(id):
 
     if not propuesta:
         flash("Propuesta no encontrada.", "error")
-        return redirect(url_for("index"))
+        return redirect(url_for("index", **request.args))
 
     # 🔒 Validación de permisos
     if not puede_editar_propuesta(propuesta):
         flash("No tienes permiso para editar esta propuesta.", "error")
-        return redirect(url_for("index"))
+        return redirect(url_for("index", **request.args))
 
     if request.method == "POST":
         campos = [
@@ -240,17 +240,26 @@ def editar_propuesta(id):
         propuesta.fecha_actualizacion = datetime.now().date().isoformat()
         actualizar_propuesta(propuesta)
         flash("Propuesta actualizada correctamente.", "success")
-        return redirect(url_for("index"))
 
-    # Cargar listas desplegables necesarias para GET
+        # ✅ Recolectar filtros desde campos ocultos dinámicos (excluyendo campos editables)
+        campos_editables = set(campos)
+        filtros_post = {
+            k: v for k, v in request.form.items()
+            if k not in campos_editables and k != "nro_oportunidad"
+        }
+
+        return redirect(url_for("index", **filtros_post))
+
+    # GET: Cargar listas y filtros para pasar al template
     clientes = get_clientes()
     account_managers = get_account_managers()
     preventas = get_preventas()
     probabilidades = PROBABILIDAD_CIERRE
     estados = STATUS
 
-    # Cargar logs de la propuesta
     logs = sorted(leer_logs_propuesta(id), key=lambda l: l["fecha"], reverse=True)
+
+    filtros_get = dict(request.args)  # Todos los filtros dinámicos
 
     return render_template(
         "editar_propuesta.html",
@@ -260,7 +269,8 @@ def editar_propuesta(id):
         preventas=preventas,
         probabilidades=probabilidades,
         estados=estados,
-        logs=logs
+        logs=logs,
+        filtros=filtros
     )
 
 
@@ -887,15 +897,12 @@ def nueva_factura():
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) AS total FROM facturas WHERE nro_factura = ?", (datos['nro_factura'],))
         existe = cursor.fetchone()['total']
-        conn.close()
-
         if existe > 0:
+            conn.close()
             return f"Error: Ya existe una factura con el número {datos['nro_factura']}", 400
 
-        # Leer id_propuesta y monto_oc de esa OC
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT id_propuesta, monto_oc FROM ordenes_compra WHERE id_oc = ?", (datos["id_oc"],))
+        # Leer id_propuesta, monto_oc y moneda de esa OC
+        cursor.execute("SELECT id_propuesta, monto_oc, moneda FROM ordenes_compra WHERE id_oc = ?", (datos["id_oc"],))
         row = cursor.fetchone()
         if not row:
             conn.close()
@@ -903,10 +910,25 @@ def nueva_factura():
 
         id_propuesta = row["id_propuesta"]
         monto_oc = float(row["monto_oc"])
-        nuevo_monto = float(datos["monto_factura"])
+        moneda = row["moneda"]
+        datos["moneda"] = moneda  # ← Agregado para compatibilidad con el service
+
+        # Validar monto ingresado
+        try:
+            nuevo_monto = float(datos["monto_factura"])
+            if nuevo_monto <= 0:
+                raise ValueError()
+        except:
+            conn.close()
+            return "Error: Monto inválido", 400
 
         # Obtener total facturado actual para esa OC
-        cursor.execute("SELECT SUM(monto_factura) AS total FROM facturas WHERE id_oc = ?", (datos["id_oc"],))
+        cursor.execute("""
+            SELECT 
+                COALESCE(SUM(monto_factura_soles), 0) + COALESCE(SUM(monto_factura_dolares), 0) AS total
+            FROM facturas
+            WHERE id_oc = ?
+        """, (datos["id_oc"],))
         total_facturado = cursor.fetchone()["total"] or 0
 
         if total_facturado + nuevo_monto > monto_oc:
@@ -915,10 +937,7 @@ def nueva_factura():
 
         conn.close()
 
-        if not row:
-            return "Error: OC no válida", 400
-        id_propuesta = row["id_propuesta"]
-
+        # Crear factura
         resultado = facturacion_service.crear_factura(datos)
 
         if request.args.get("ajax") == "1":
@@ -928,13 +947,12 @@ def nueva_factura():
             ids_oc = [oc["id_oc"] for oc in ordenes_filtradas]
             facturas_filtradas = [f for f in facturas if f["id_oc"] in ids_oc]
 
-
-            propuesta = leer_propuestas({"id": id_propuesta})[0]  # ✅ Añadir esta línea
+            propuesta = leer_propuestas({"id": id_propuesta})[0]
             return render_template("facturacion/facturacion_detalles_parcial.html",
                                    ordenes=ordenes_filtradas,
                                    facturas=facturas_filtradas,
                                    id_propuesta=id_propuesta,
-                                   propuesta=propuesta)  # ✅ Añadir propuesta
+                                   propuesta=propuesta)
 
         if resultado['ok']:
             return redirect(url_for('facturacion_index', id_abierta=id_propuesta))
@@ -943,10 +961,7 @@ def nueva_factura():
             return render_template('facturacion/factura_nueva.html', error=resultado['error'], datos=datos,
                                    ordenes=ordenes)
 
-    #ordenes = facturacion_service.obtener_todas_oc()
-    #id_propuesta = request.args.get("id_propuesta", "")
-    #return render_template('facturacion/factura_nueva.html', ordenes=ordenes, id_propuesta=id_propuesta)
-
+    # GET: Mostrar formulario
     id_propuesta = request.args.get("id_propuesta", "")
     todas_las_oc = facturacion_service.obtener_todas_oc()
     ordenes_filtradas = [oc for oc in todas_las_oc if oc["id_propuesta"] == id_propuesta]
@@ -954,6 +969,7 @@ def nueva_factura():
     return render_template('facturacion/factura_nueva.html',
                            ordenes=ordenes_filtradas,
                            id_propuesta=id_propuesta)
+
 
 
 @app.route("/facturacion")
@@ -980,7 +996,7 @@ def facturacion_por_propuesta(id_propuesta):
     mapa_facturas_por_oc = {}
     for f in facturas_filtradas:
         id_oc = f["id_oc"]
-        monto = float(f["monto_factura"] or 0)
+        monto = float(f["monto_factura_soles"] or 0) + float(f["monto_factura_dolares"] or 0)
         mapa_facturas_por_oc[id_oc] = mapa_facturas_por_oc.get(id_oc, 0) + monto
 
 
@@ -1053,7 +1069,7 @@ def editar_oc(id_oc):
         mapa_facturas_por_oc = {}
         for f in facturas_filtradas:
             id_oc = f["id_oc"]
-            monto = float(f["monto_factura"] or 0)
+            monto = float(f["monto_factura_soles"] or 0) + float(f["monto_factura_dolares"] or 0)
             mapa_facturas_por_oc[id_oc] = mapa_facturas_por_oc.get(id_oc, 0) + monto
 
         ordenes_con_montos = []
@@ -1075,35 +1091,45 @@ def editar_oc(id_oc):
     conn.close()
     return render_template("facturacion/oc_editar.html", oc=oc)
 
-
 @app.route('/facturacion/factura/editar/<int:id_factura>', methods=['GET', 'POST'])
 def editar_factura(id_factura):
     if request.method == 'POST':
         id_propuesta = request.form["id_propuesta"]
-        monto = request.form["monto_factura"]
+        monto_raw = request.form["monto_factura"]
         fecha = request.form["fecha_factura"]
         nro_factura = request.form["nro_factura"]
+        moneda = request.form.get("moneda")
 
-        actualizar_factura(id_factura, fecha, monto, nro_factura)
+        try:
+            monto = float(monto_raw)
+            if monto <= 0:
+                raise ValueError("Monto debe ser positivo")
+        except:
+            return render_template("facturacion/error_factura_xml.html", mensaje="❌ Monto inválido")
+
+        if moneda not in ["S/", "US$"]:
+            return render_template("facturacion/error_factura_xml.html", mensaje="❌ Moneda inválida")
+
+        monto_soles = monto if moneda == "S/" else None
+        monto_dolares = monto if moneda == "US$" else None
+
+        actualizar_factura_v2(id_factura, fecha, nro_factura, monto_soles, monto_dolares)
 
         # Obtener datos actualizados
-
-
         ordenes_filtradas = leer_ordenes_compra(id_propuesta)
         facturas_filtradas = leer_facturas(id_propuesta)
         propuesta = leer_propuestas({"id": id_propuesta})[0]
 
-        # 🔍 Cálculo de montos facturados por OC
+        # Recalcular montos facturados por OC
         mapa_facturas_por_oc = {}
         for f in facturas_filtradas:
+            monto = float(f["monto_factura_soles"] or f["monto_factura_dolares"] or 0)
             id_oc = f["id_oc"]
-            monto = float(f["monto_factura"] or 0)
             mapa_facturas_por_oc[id_oc] = mapa_facturas_por_oc.get(id_oc, 0) + monto
-
 
         ordenes_con_montos = []
         for oc in ordenes_filtradas:
-            oc_dict = dict(oc)  # ✅ convertir de sqlite3.Row a dict
+            oc_dict = dict(oc)
             monto_oc = float(oc_dict["monto_oc"] or 0)
             facturado = mapa_facturas_por_oc.get(oc_dict["id_oc"], 0)
             pendiente = max(0, monto_oc - facturado)
@@ -1117,11 +1143,10 @@ def editar_factura(id_factura):
                                id_propuesta=id_propuesta,
                                propuesta=propuesta)
 
-
-    # GET
+    # GET: mostrar formulario
     factura = obtener_factura(id_factura)
     id_propuesta = request.args.get("id_propuesta")
-    # Obtener nro_oc de la OC asociada
+
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT nro_oc FROM ordenes_compra WHERE id_oc = ?", (factura["id_oc"],))
@@ -1130,11 +1155,23 @@ def editar_factura(id_factura):
 
     nro_oc = row_oc["nro_oc"] if row_oc else "?"
 
-
     return render_template("facturacion/factura_editar.html",
                            factura=factura,
                            id_propuesta=id_propuesta,
                            nro_oc=nro_oc)
+
+def actualizar_factura_v2(id_factura, fecha, nro_factura, monto_soles, monto_dolares):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE facturas
+        SET fecha_factura = ?, nro_factura = ?, 
+            monto_factura_soles = ?, monto_factura_dolares = ?
+        WHERE id_factura = ?
+    """, (fecha, nro_factura, monto_soles, monto_dolares, id_factura))
+    conn.commit()
+    conn.close()
+
 
 
 def actualizar_factura(id_factura, fecha, monto, nro_factura):
@@ -1564,8 +1601,6 @@ def importar_factura_xml():
         if not archivo:
             return render_template("facturacion/importar_factura_xml.html", error="No se subió ningún archivo", datos=None)
 
-
-
         try:
             tree = ET.parse(archivo)
             root = tree.getroot()
@@ -1577,15 +1612,27 @@ def importar_factura_xml():
 
             nro_factura = root.findtext("cbc:ID", default="", namespaces=ns)
             fecha = root.findtext("cbc:IssueDate", default="", namespaces=ns)
-            nro_oc = root.find("cac:OrderReference/cbc:ID", ns)
-            monto_sin_igv = root.find("cac:LegalMonetaryTotal/cbc:LineExtensionAmount", ns)
+            nro_oc_elem = root.find("cac:OrderReference/cbc:ID", ns)
+            monto_sin_igv_elem = root.find("cac:LegalMonetaryTotal/cbc:LineExtensionAmount", ns)
+            payable_elem = root.find("cac:LegalMonetaryTotal/cbc:PayableAmount", ns)
 
+            # Extraer la moneda desde el atributo currencyID
+            moneda = payable_elem.attrib.get("currencyID", "") if payable_elem is not None else ""
+            if moneda == "PEN":
+                moneda_formateada = "S/"
+            elif moneda == "USD":
+                moneda_formateada = "US$"
+            else:
+                moneda_formateada = ""
+
+            # Armar los datos detectados
             data = {
                 "nro_factura": nro_factura,
                 "fecha_factura": fecha,
-                "nro_oc": nro_oc.text if nro_oc is not None else "",
-                "monto_factura": monto_sin_igv.text if monto_sin_igv is not None else "",
-                "id_propuesta": ""
+                "nro_oc": nro_oc_elem.text if nro_oc_elem is not None else "",
+                "monto_factura": monto_sin_igv_elem.text if monto_sin_igv_elem is not None else "",
+                "id_propuesta": "",
+                "moneda": moneda_formateada
             }
 
             return render_template("facturacion/importar_factura_xml.html", datos=data)
@@ -1595,9 +1642,6 @@ def importar_factura_xml():
 
     return render_template("facturacion/importar_factura_xml.html", datos=None)
 
-
-
-
 @app.route("/facturacion/registrar_factura_xml", methods=["POST"])
 def registrar_factura_desde_xml():
     id_propuesta = request.form.get("id_propuesta")
@@ -1605,6 +1649,19 @@ def registrar_factura_desde_xml():
     nro_factura = request.form.get("nro_factura")
     fecha_factura = request.form.get("fecha_factura")
     monto_factura = request.form.get("monto_factura")
+    moneda = request.form.get("moneda")  # ✅ Nuevo campo
+
+    # Validar monto como número
+    try:
+        monto = float(monto_factura)
+        if monto <= 0:
+            raise ValueError
+    except:
+        return render_template("facturacion/error_factura_xml.html", mensaje="❌ El monto no es válido")
+
+    # Validar moneda
+    if moneda not in ["S/", "US$"]:
+        return render_template("facturacion/error_factura_xml.html", mensaje="❌ Moneda inválida")
 
     # Verificar si ya existe una factura con ese número
     conn = get_db_connection()
@@ -1615,7 +1672,7 @@ def registrar_factura_desde_xml():
     if existe > 0:
         conn.close()
         return render_template("facturacion/error_factura_xml.html",
-                               mensaje=f"Ya existe una factura con el número {nro_factura}")
+                               mensaje=f"❌ Ya existe una factura con el número {nro_factura}")
 
     # Validar que el número de OC pertenezca a la oportunidad indicada
     cursor.execute("SELECT id_oc FROM ordenes_compra WHERE nro_oc = ? AND id_propuesta = ?", (nro_oc, id_propuesta))
@@ -1632,7 +1689,8 @@ def registrar_factura_desde_xml():
         "id_oc": id_oc,
         "nro_factura": nro_factura,
         "fecha_factura": fecha_factura,
-        "monto_factura": monto_factura
+        "monto_factura": monto,
+        "moneda": moneda  # ✅ Aquí se envía al service
     }
 
     resultado = facturacion_service.crear_factura(datos)
@@ -1684,6 +1742,15 @@ def importar_nc_xml():
             nro_nc = root.findtext("cbc:ID", default="", namespaces=ns)
             fecha_nc = root.findtext("cbc:IssueDate", default="", namespaces=ns)
             monto = root.findtext("cac:LegalMonetaryTotal/cbc:PayableAmount", default="", namespaces=ns)
+
+            moneda = root.find("cac:LegalMonetaryTotal/cbc:PayableAmount", namespaces=ns).attrib.get("currencyID", "")
+            if moneda == "PEN":
+                moneda_formateada = "S/"
+            elif moneda == "USD":
+                moneda_formateada = "US$"
+            else:
+                moneda_formateada = ""
+
             factura_afectada_raw = root.findtext("cac:BillingReference/cac:InvoiceDocumentReference/cbc:ID", default="", namespaces=ns)
 
             factura_afectada = factura_afectada_raw.replace(" ", "").strip()  # Normaliza
@@ -1709,7 +1776,8 @@ def importar_nc_xml():
                 "factura_afectada": factura_afectada,
                 "fecha_nc": fecha_nc,
                 "monto_nc": monto,
-                "id_propuesta": id_propuesta
+                "id_propuesta": id_propuesta,
+                "moneda": moneda_formateada  # ✅ agregado
             }
 
             return render_template("facturacion/importar_nc_xml.html", datos=datos)
@@ -1719,14 +1787,19 @@ def importar_nc_xml():
 
     return render_template("facturacion/importar_nc_xml.html", datos=None)
 
-
 @app.route("/facturacion/registrar_nc_desde_xml", methods=["POST"])
 def registrar_nc_desde_xml():
     nro_nc = request.form.get("nro_nc")
-    factura_afectada = request.form.get("factura_afectada").replace(" ", "").strip()
+    factura_afectada = request.form.get("factura_afectada", "").replace(" ", "").strip()
     fecha_nc = request.form.get("fecha_nc")
     monto_nc = request.form.get("monto_nc")
     id_propuesta = request.form.get("id_propuesta")
+    moneda = request.form.get("moneda")
+
+    # Validar moneda
+    if moneda not in ["S/", "US$"]:
+        return render_template("facturacion/error_factura_xml.html",
+                               mensaje="❌ Moneda inválida o no proporcionada.")
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -1748,12 +1821,13 @@ def registrar_nc_desde_xml():
 
     id_oc = row["id_oc"]
 
-    # Insertar nota de crédito como factura negativa
+    # Armar datos para inserción
     datos = {
         "id_oc": id_oc,
         "nro_factura": nro_nc,
         "fecha_factura": fecha_nc,
-        "monto_factura": -abs(float(monto_nc or 0))  # ⚠️ negativo
+        "monto_factura": -abs(float(monto_nc or 0)),  # ⚠️ monto negativo
+        "moneda": moneda
     }
 
     resultado = facturacion_service.crear_nota_credito(datos)
@@ -1763,16 +1837,37 @@ def registrar_nc_desde_xml():
     else:
         return render_template("facturacion/error_factura_xml.html", mensaje=resultado["error"])
 
-from functools import wraps
-from flask import redirect, url_for, session
+
+
 
 @app.route("/tools/backup")
 def backup_manual():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     backups_dir = os.path.join(base_dir, "backups")
-    archivos = os.listdir(backups_dir) if os.path.exists(backups_dir) else []
-    archivos = sorted(archivos, reverse=True)
-    return render_template("backup/manual_backup.html", backups=archivos)
+
+    archivos = []
+    if os.path.exists(backups_dir):
+        archivos = [
+            f for f in os.listdir(backups_dir)
+            if f.endswith(".sqlite") and not f.startswith(".")
+        ]
+        archivos = sorted(archivos, reverse=True)
+
+    # Generar una lista con nombre + fecha legible si aplica
+    archivos_info = []
+    for f in archivos:
+        fecha_legible = ""
+        match = re.search(r"(\d{8}_\d{6})", f)
+        if match:
+            try:
+                dt = datetime.strptime(match.group(1), "%Y%m%d_%H%M%S")
+                fecha_legible = dt.strftime("%d/%m/%Y %H:%M:%S")
+            except:
+                pass
+        archivos_info.append({"nombre": f, "fecha": fecha_legible})
+
+    return render_template("backup/manual_backup.html", backups=archivos_info)
+
 
 
 @app.route("/tools/backup/download", methods=["POST"])
@@ -1806,23 +1901,42 @@ def descargar_backup(nombre):
 @app.route("/instalar_db_render")
 def instalar_db_render():
     import shutil, os, sqlite3
+
     base_dir = os.path.dirname(os.path.abspath(__file__))
     origen = os.path.join(base_dir, "backups", "base_para_render.sqlite")
     destino = os.path.join(base_dir, "database", "crm_database.db")
 
-    shutil.copyfile(origen, destino)
+    # ✅ 1. Verifica que el archivo de destino aún NO exista
+    if os.path.exists(destino):
+        return "⚠️ Ya existe una base de datos activa (crm_database.db). Cancelado para evitar sobrescritura."
 
-    # Verifica si la tabla propuestas existe
-    conn = sqlite3.connect(destino)
-    cursor = conn.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='propuestas'")
-    tabla = cursor.fetchone()
-    conn.close()
+    # ✅ 2. Verifica que el archivo fuente exista
+    if not os.path.exists(origen):
+        return "❌ No se encontró el archivo base_para_render.sqlite en la carpeta backups."
 
-    if tabla:
-        return "✅ Base restaurada y tabla 'propuestas' encontrada en Render."
-    else:
-        return "❌ ERROR: la base fue copiada, pero no tiene la tabla 'propuestas'."
+    # ✅ 3. Copia el archivo
+    try:
+        shutil.copyfile(origen, destino)
+    except Exception as e:
+        return f"❌ Error al copiar archivo: {e}"
+
+    # ✅ 4. Verifica que la tabla 'propuestas' exista en la base copiada
+
+    try:
+        conn = get_db_connection(destino)
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='propuestas'")
+        tabla = cursor.fetchone()
+        conn.close()
+
+        if tabla:
+            return "✅ Base restaurada correctamente y tabla 'propuestas' detectada."
+        else:
+            return "⚠️ Base copiada, pero la tabla 'propuestas' no fue encontrada."
+    except Exception as e:
+        return f"❌ Error al verificar base copiada: {e}"
+
+
 
 
 app.jinja_env.globals.update(tiene_permiso=tiene_permiso)

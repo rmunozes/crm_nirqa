@@ -330,12 +330,22 @@
       <td class="acciones">
         <div class="acciones-iconos">
           {% if puede_editar_propuesta(propuesta) %}
-            <a href="{{ url_for('editar_propuesta', id=propuesta.id) }}" class="icono-accion">✏️</a>
+
+            {% set args_limpios = request.args.to_dict() %}
+            {% if 'id' in args_limpios %}
+              {% set _ = args_limpios.pop('id') %}
+            {% endif %}
+            <a href="{{ url_for('editar_propuesta', id=propuesta.id, **args_limpios) }}" class="icono-accion">✏️</a>
+
+
           {% endif %}
 
           <a href="{{ url_for('editar_comentario', id=propuesta.id) }}" class="icono-accion">💬</a>
         </div>
       </td>
+
+
+
     </tr>
     {% endfor %}
   </tbody>

@@ -1,10 +1,8 @@
 <form method="POST">
-  <!-- CAMBIO CLAVE -->
   <input type="hidden" name="id_propuesta" value="{{ id_propuesta }}">
 
   <label for="nro_oc">Número de OC:</label><br>
   <input type="text" name="nro_oc" value="{{ nro_oc }}" readonly><br><br>
-
 
   <label for="nro_factura">Número de Factura:</label><br>
   <input type="text" name="nro_factura" value="{{ factura.nro_factura }}" required><br><br>
@@ -13,7 +11,15 @@
   <input type="date" name="fecha_factura" value="{{ factura.fecha_factura }}" required><br><br>
 
   <label for="monto_factura">Monto:</label><br>
-  <input type="number" step="0.01" name="monto_factura" value="{{ factura.monto_factura }}" required><br><br>
+  <input type="number" step="0.01" name="monto_factura"
+         value="{{ factura.monto_factura_soles or factura.monto_factura_dolares }}" required><br><br>
+
+  <label for="moneda">Moneda:</label><br>
+  <select name="moneda" required>
+    <option value="">--Seleccionar moneda--</option>
+    <option value="S/" {% if factura.monto_factura_soles %}selected{% endif %}>S/ (Soles)</option>
+    <option value="US$" {% if factura.monto_factura_dolares %}selected{% endif %}>US$ (Dólares)</option>
+  </select><br><br>
 
   <button type="submit" class="button">Guardar Cambios</button>
 </form>

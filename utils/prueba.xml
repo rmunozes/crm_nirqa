@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CreditNote xmlns="urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2"
+            xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+            xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+
+  <cbc:ID>F001-5678</cbc:ID>
+  <cbc:IssueDate>2024-06-18</cbc:IssueDate>
+
+  <cac:BillingReference>
+    <cac:InvoiceDocumentReference>
+      <cbc:ID>F001-1234</cbc:ID>
+    </cac:InvoiceDocumentReference>
+  </cac:BillingReference>
+
+  <cac:LegalMonetaryTotal>
+    <cbc:PayableAmount currencyID="USD">100.00</cbc:PayableAmount>
+  </cac:LegalMonetaryTotal>
+
+</CreditNote>
