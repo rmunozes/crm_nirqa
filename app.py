@@ -248,7 +248,11 @@ def editar_propuesta(id):
             if k not in campos_editables and k != "nro_oportunidad"
         }
 
-        return redirect(url_for("index", **filtros_post))
+        next_url = request.args.get("next") or request.form.get("next")
+        if next_url:
+            return redirect(next_url)
+        else:
+            return redirect(url_for("index", **filtros_post))
 
     # GET: Cargar listas y filtros para pasar al template
     clientes = get_clientes()
@@ -618,7 +622,7 @@ def editar_cliente(id):
 
     return render_template("editar_cliente.html", cliente=cliente)
 
-
+"""""
 @app.route("/propuestas/comentarios/<string:id>", methods=["GET", "POST"])
 def editar_comentario(id):
     if "usuario_id" not in session:
@@ -642,6 +646,45 @@ def editar_comentario(id):
         return redirect(url_for("index"))
 
     return render_template("editar_comentario.html", propuesta=propuesta)
+"""""
+
+@app.route("/propuestas/comentarios/<string:id>", methods=["GET", "POST"])
+def editar_comentario(id):
+    if "usuario_id" not in session:
+        return redirect(url_for("login"))
+
+    propuesta = next((p for p in leer_propuestas({"id": id}) if p.id == id), None)
+    if not propuesta:
+        flash("Propuesta no encontrada.", "error")
+        return redirect(url_for("index"))
+
+    if request.method == "POST":
+
+        nuevo = request.form.get("nuevo_comentario")
+        usuario = session.get("nombre", "Anónimo")
+        timestamp = datetime.now().strftime("%d/%m/%Y %H:%M")
+        entrada = f"[{timestamp}] {usuario}: {nuevo}"
+
+        comentario_actual = propuesta.comentarios or ""
+        comentario_actualizado = f"{entrada}\n{comentario_actual}".strip()
+
+        actualizar_comentario(id, comentario_actualizado)
+        flash("Comentario añadido exitosamente.", "success")
+
+        # ✅ Redirigir según `next` si está disponible
+        next_url = request.form.get("next") or request.args.get("next")
+
+        if next_url:
+            return redirect(next_url)
+        else:
+            return redirect(url_for("index"))
+
+    # GET: renderizar formulario
+    return render_template(
+        "editar_comentario.html",
+        propuesta=propuesta,
+        next=request.args.get("next")
+    )
 
 
 @app.template_filter('datetimeformat')
@@ -1102,10 +1145,18 @@ def editar_factura(id_factura):
 
         try:
             monto = float(monto_raw)
-            if monto <= 0:
-                raise ValueError("Monto debe ser positivo")
+            nro_factura_limpio = nro_factura.strip().upper()
+            es_nc = float(monto_raw) < 0 # ✅ basado en monto, no en el número
+
+            if es_nc:
+                if monto >= 0:
+                    raise ValueError("Monto inválido: las NC deben tener monto negativo")
+            else:
+                if monto <= 0:
+                    raise ValueError("Monto inválido: las facturas deben tener monto positivo")
         except:
-            return render_template("facturacion/error_factura_xml.html", mensaje="❌ Monto inválido")
+            return render_template("facturacion/error_factura_xml.html",
+                                   mensaje="❌ Monto inválido. Revisa el valor y el prefijo del número de factura.")
 
         if moneda not in ["S/", "US$"]:
             return render_template("facturacion/error_factura_xml.html", mensaje="❌ Moneda inválida")
@@ -1741,7 +1792,7 @@ def importar_nc_xml():
 
             nro_nc = root.findtext("cbc:ID", default="", namespaces=ns)
             fecha_nc = root.findtext("cbc:IssueDate", default="", namespaces=ns)
-            monto = root.findtext("cac:LegalMonetaryTotal/cbc:PayableAmount", default="", namespaces=ns)
+            monto = root.findtext("cac:LegalMonetaryTotal/cbc:LineExtensionAmount", default="", namespaces=ns)
 
             moneda = root.find("cac:LegalMonetaryTotal/cbc:PayableAmount", namespaces=ns).attrib.get("currencyID", "")
             if moneda == "PEN":
@@ -1838,6 +1889,164 @@ def registrar_nc_desde_xml():
         return render_template("facturacion/error_factura_xml.html", mensaje=resultado["error"])
 
 
+
+@app.route("/facturacion/resumen")
+def facturacion_resumen():
+    from services.facturacion_service import obtener_todo_facturacion
+    ordenes, facturas = obtener_todo_facturacion()
+
+    # Leer propuestas con status 'Booking'
+    propuestas = [p for p in leer_propuestas(pagina=1, filas_por_pagina=10000) if (p.status or "").lower() == "booking"]
+
+    # Paso 1: Construir el resumen base
+    resumen = {}
+    for p in propuestas:
+        resumen[p.id] = {
+            "id": p.id,
+            "cliente": p.cliente,
+            "cliente_final": p.cliente_final,
+            "nombre_oportunidad": p.nombre_oportunidad,
+            "facturado_soles": 0.0,
+            "facturado_dolares": 0.0,
+            "pendiente_soles": 0.0,
+            "pendiente_dolares": 0.0
+        }
+
+    # Paso 2: Sumar pendientes por OC
+    for oc in ordenes:
+        id_propuesta = oc["id_propuesta"]
+        if id_propuesta in resumen:
+            moneda = oc["moneda"]
+            monto_oc = float(oc["monto_oc"])
+            if moneda == "S/":
+                resumen[id_propuesta]["pendiente_soles"] += monto_oc
+            elif moneda == "US$":
+                resumen[id_propuesta]["pendiente_dolares"] += monto_oc
+
+    # Paso 3: Descontar lo facturado
+    for f in facturas:
+        id_oc = f["id_oc"]
+        for oc in ordenes:
+            if oc["id_oc"] == id_oc:
+                id_propuesta = oc["id_propuesta"]
+                if id_propuesta in resumen:
+                    monto = float(f["monto_factura_soles"] or f["monto_factura_dolares"] or 0)
+                    moneda = oc["moneda"]
+                    if moneda == "S/":
+                        resumen[id_propuesta]["facturado_soles"] += monto
+                        resumen[id_propuesta]["pendiente_soles"] -= monto
+                    elif moneda == "US$":
+                        resumen[id_propuesta]["facturado_dolares"] += monto
+                        resumen[id_propuesta]["pendiente_dolares"] -= monto
+                break
+
+    # Paso 4: Obtener filtros desde request.args
+    id_filtro = request.args.get("id", "").strip()
+    cliente = request.args.get("cliente", "").strip().lower()
+    cliente_final = request.args.get("cliente_final", "").strip().lower()
+    nombre_oportunidad = request.args.get("nombre_oportunidad", "").strip().lower()
+
+    min_fact_soles = float(request.args.get("min_fact_soles", 0) or 0)
+    max_fact_soles = float(request.args.get("max_fact_soles", 1e12) or 1e12)
+    min_fact_dolares = float(request.args.get("min_fact_dolares", 0) or 0)
+    max_fact_dolares = float(request.args.get("max_fact_dolares", 1e12) or 1e12)
+
+    min_pend_soles = float(request.args.get("min_pend_soles", 0) or 0)
+    max_pend_soles = float(request.args.get("max_pend_soles", 1e12) or 1e12)
+    min_pend_dolares = float(request.args.get("min_pend_dolares", 0) or 0)
+    max_pend_dolares = float(request.args.get("max_pend_dolares", 1e12) or 1e12)
+    nro_oc = request.args.get("nro_oc", "").strip().lower()
+    nro_factura = request.args.get("nro_factura", "").strip().lower()
+
+    # Paso 5: Filtrar según los valores del resumen
+    data_filtrada = []
+    for r in resumen.values():
+        if id_filtro and id_filtro not in str(r["id"]):
+            continue
+        if cliente and cliente not in (r["cliente"] or "").lower():
+            continue
+        if cliente_final and cliente_final not in (r["cliente_final"] or "").lower():
+            continue
+        if nombre_oportunidad and nombre_oportunidad not in (r["nombre_oportunidad"] or "").lower():
+            continue
+
+        if not (min_fact_soles <= r["facturado_soles"] <= max_fact_soles):
+            continue
+        if not (min_fact_dolares <= r["facturado_dolares"] <= max_fact_dolares):
+            continue
+        if not (min_pend_soles <= r["pendiente_soles"] <= max_pend_soles):
+            continue
+        if not (min_pend_dolares <= r["pendiente_dolares"] <= max_pend_dolares):
+            continue
+        # Filtro por Nro OC
+        if nro_oc:
+            oc_relacionados = [oc for oc in ordenes if oc["id_propuesta"] == r["id"]]
+            if not any(nro_oc in (oc["nro_oc"] or "").lower() for oc in oc_relacionados):
+                continue
+
+        # Filtro por Nro Factura
+        if nro_factura:
+            oc_relacionados = [oc for oc in ordenes if oc["id_propuesta"] == r["id"]]
+            facturas_relacionadas = [
+                f for f in facturas for oc in oc_relacionados if f["id_oc"] == oc["id_oc"]
+            ]
+            if not any(nro_factura in (f["nro_factura"] or "").lower() for f in facturas_relacionadas):
+                continue
+
+
+        data_filtrada.append(r)
+
+
+    # Paso 5.1: Ordenamiento antes de paginar
+    sort = request.args.get("sort")
+    order = request.args.get("order", "asc")
+
+    if sort in [
+        "id", "cliente", "cliente_final", "nombre_oportunidad",
+        "facturado_soles", "facturado_dolares", "pendiente_soles", "pendiente_dolares"
+    ]:
+        data_filtrada.sort(
+            key=lambda r: str(r[sort]).lower() if isinstance(r[sort], str) else r[sort],
+            reverse=(order == "desc")
+        )
+
+
+    # Paso 6: Paginación
+    pagina = int(request.args.get("pagina", 1))
+    filas_por_pagina = 50
+    offset = (pagina - 1) * filas_por_pagina
+    total_paginas = (len(data_filtrada) + filas_por_pagina - 1) // filas_por_pagina
+    resumen_paginado = data_filtrada[offset:offset + filas_por_pagina]
+
+    # Paso 7: Totales generales
+    totales = {
+        "facturado_soles": sum(r["facturado_soles"] for r in data_filtrada),
+        "facturado_dolares": sum(r["facturado_dolares"] for r in data_filtrada),
+        "pendiente_soles": sum(r["pendiente_soles"] for r in data_filtrada),
+        "pendiente_dolares": sum(r["pendiente_dolares"] for r in data_filtrada),
+    }
+
+    # Paso 8: Preparar argumentos para URL (paginación sin duplicar 'pagina')
+
+    # Esto es para los headers (ordenar columnas sin duplicar)
+    args_sin_sort = {k: v for k, v in request.args.items() if k not in ("sort", "order")}
+
+    # Esto es para la paginación (conserva sort y order)
+    args_sin_pagina = {k: v for k, v in request.args.items() if k != "pagina"}
+
+    from urllib.parse import urlencode
+    query_string_base = urlencode(args_sin_pagina)
+
+    return render_template("facturacion/facturacion_resumen.html",
+                           resumen=resumen_paginado,
+                           pagina_actual=pagina,
+                           total_paginas=total_paginas,
+                           query_string_base=urlencode(args_sin_pagina),
+                           totales=totales,
+                           args_paginacion=args_sin_pagina,
+                           args_headers=args_sin_sort,
+                           sort=sort,
+                           order=order)
 
 
 @app.route("/tools/backup")

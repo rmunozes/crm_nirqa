@@ -11,8 +11,10 @@
   <input type="date" name="fecha_factura" value="{{ factura.fecha_factura }}" required><br><br>
 
   <label for="monto_factura">Monto:</label><br>
-  <input type="number" step="0.01" name="monto_factura"
-         value="{{ factura.monto_factura_soles or factura.monto_factura_dolares }}" required><br><br>
+
+<input type="number" step="0.01" name="monto_factura"
+       value="{{ factura.monto_factura_soles or factura.monto_factura_dolares }}" required min="-9999999">
+
 
   <label for="moneda">Moneda:</label><br>
   <select name="moneda" required>

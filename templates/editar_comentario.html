@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -45,9 +44,31 @@
     <form method="POST">
         <label for="nuevo_comentario">Agregar nuevo comentario:</label>
         <textarea name="nuevo_comentario" rows="4" required></textarea>
+
+        <!-- Campo oculto para mantener la navegación -->
+        <input type="hidden" name="next" value="{{ request.args.get('next', '') }}">
+
+
+        {# ✅ Campo oculto para preservar la URL anterior #}
+        {% if next %}
+            <input type="hidden" name="next" value="{{ next }}">
+        {% endif %}
+
         <button type="submit" class="button">Guardar Comentario</button>
     </form>
 
-    <a href="{{ url_for('index') }}" class="volver">← Volver</a>
+    {# ✅ Botón de volver que respeta `next` si existe #}
+    {% if next %}
+        <a href="{{ next }}" class="volver">← Volver</a>
+    {% else %}
+
+        {% if request.args.get('next') %}
+          <a href="{{ request.args.get('next') }}" class="volver">← Volver</a>
+        {% else %}
+          <a href="{{ url_for('index') }}" class="volver">← Volver</a>
+        {% endif %}
+
+
+    {% endif %}
 </body>
 </html>

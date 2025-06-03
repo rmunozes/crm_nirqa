@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h2>Resumen de Facturación</h2>
+
+<form method="GET" action="{{ url_for('facturacion_resumen') }}" style="margin-bottom: 20px;">
+  <fieldset style="border: 1px solid #ccc; padding: 10px;">
+    <legend><strong>🔍 Filtros</strong></legend>
+    <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start;">
+      <label>ID Propuesta:<br><input type="text" name="id" value="{{ request.args.get('id', '') }}"></label>
+      <label>Cliente:<br><input type="text" name="cliente" value="{{ request.args.get('cliente', '') }}"></label>
+      <label>Cliente Final:<br><input type="text" name="cliente_final" value="{{ request.args.get('cliente_final', '') }}"></label>
+      <label>Oportunidad:<br><input type="text" name="nombre_oportunidad" value="{{ request.args.get('nombre_oportunidad', '') }}"></label>
+      <label>Nro OC:<br><input type="text" name="nro_oc" value="{{ request.args.get('nro_oc', '') }}"></label>
+      <label>Nro Factura:<br><input type="text" name="nro_factura" value="{{ request.args.get('nro_factura', '') }}"></label>
+
+      <label>Fact. S/ Desde:<br><input type="number" name="min_fact_soles" step="0.01" value="{{ request.args.get('min_fact_soles', '') }}"></label>
+      <label>Fact. S/ Hasta:<br><input type="number" name="max_fact_soles" step="0.01" value="{{ request.args.get('max_fact_soles', '') }}"></label>
+
+      <label>Fact. US$ Desde:<br><input type="number" name="min_fact_dolares" step="0.01" value="{{ request.args.get('min_fact_dolares', '') }}"></label>
+      <label>Fact. US$ Hasta:<br><input type="number" name="max_fact_dolares" step="0.01" value="{{ request.args.get('max_fact_dolares', '') }}"></label>
+
+      <label>Pend. S/ Desde:<br><input type="number" name="min_pend_soles" step="0.01" value="{{ request.args.get('min_pend_soles', '') }}"></label>
+      <label>Pend. S/ Hasta:<br><input type="number" name="max_pend_soles" step="0.01" value="{{ request.args.get('max_pend_soles', '') }}"></label>
+
+      <label>Pend. US$ Desde:<br><input type="number" name="min_pend_dolares" step="0.01" value="{{ request.args.get('min_pend_dolares', '') }}"></label>
+      <label>Pend. US$ Hasta:<br><input type="number" name="max_pend_dolares" step="0.01" value="{{ request.args.get('max_pend_dolares', '') }}"></label>
+    </div>
+
+    <br>
+    <button type="submit" style="padding: 6px 12px; background-color: #007bff; color: white;">Aplicar Filtros</button>
+    <a href="{{ url_for('facturacion_resumen') }}" style="margin-left: 10px;">Limpiar</a>
+  </fieldset>
+</form>
+
+<h3>Totales Generales</h3>
+<ul>
+  <li>Total Facturado S/: <strong>S/. {{ "{:,.2f}".format(totales.facturado_soles) }}</strong></li>
+  <li>Total Facturado US$: <strong>US$ {{ "{:,.2f}".format(totales.facturado_dolares) }}</strong></li>
+  <li>Pendiente Facturar S/: <strong>S/. {{ "{:,.2f}".format(totales.pendiente_soles) }}</strong></li>
+  <li>Pendiente Facturar US$: <strong>US$ {{ "{:,.2f}".format(totales.pendiente_dolares) }}</strong></li>
+</ul>
+
+<table border="1" cellpadding="5" cellspacing="0">
+
+  <thead>
+  <tr>
+    {% set cols = [
+      ("id", "ID"),
+      ("cliente", "Cliente"),
+      ("cliente_final", "Cliente Final"),
+      ("nombre_oportunidad", "Oportunidad"),
+      ("facturado_soles", "Facturado S/"),
+      ("facturado_dolares", "Facturado US$"),
+      ("pendiente_soles", "Pendiente S/"),
+      ("pendiente_dolares", "Pendiente US$")
+    ] %}
+    {% for col, label in cols %}
+    <th>
+      <a href="{{ url_for('facturacion_resumen', sort=col, order='asc' if sort != col or order == 'desc' else 'desc', **args_headers) }}">
+        {{ label }}
+        {% if sort == col %}
+          {% if order == 'asc' %} 🔼 {% else %} 🔽 {% endif %}
+        {% endif %}
+      </a>
+    </th>
+    {% endfor %}
+  </tr>
+</thead>
+
+
+  <tbody>
+    {% for fila in resumen %}
+    <tr>
+      <td><a href="javascript:void(0);" onclick="toggleDetalles('{{ fila.id }}')">{{ fila.id }}</a></td>
+      <td>{{ fila.cliente }}</td>
+      <td>{{ fila.cliente_final }}</td>
+      <td>{{ fila.nombre_oportunidad }}</td>
+      <td style="text-align: right;">{{ "{:,.2f}".format(fila.facturado_soles) }}</td>
+      <td style="text-align: right;">{{ "{:,.2f}".format(fila.facturado_dolares) }}</td>
+      <td style="text-align: right;">{{ "{:,.2f}".format(fila.pendiente_soles) }}</td>
+      <td style="text-align: right;">{{ "{:,.2f}".format(fila.pendiente_dolares) }}</td>
+    </tr>
+    <tr id="detalles-{{ fila.id }}" style="display:none;">
+      <td colspan="8" id="contenido-{{ fila.id }}">Cargando...</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+
+<!-- Paginación -->
+<div style="margin-top: 20px;">
+  Página {{ pagina_actual }} de {{ total_paginas }}
+  <div>
+
+    {% if pagina_actual > 1 %}
+      <a href="{{ url_for('facturacion_resumen', pagina=pagina_actual - 1, **args_paginacion) }}">◀ Anterior</a>
+    {% endif %}
+    {% if pagina_actual < total_paginas %}
+      <a href="{{ url_for('facturacion_resumen', pagina=pagina_actual + 1, **args_paginacion) }}">Siguiente ▶</a>
+    {% endif %}
+
+
+  </div>
+</div>
+
+
+<script>
+  function toggleDetalles(id) {
+    const fila = document.getElementById("detalles-" + id);
+    const contenido = document.getElementById("contenido-" + id);
+    if (fila.style.display === "none") {
+      fetch("/facturacion/propuesta/" + id + "?ajax=1")
+        .then(res => res.text())
+        .then(html => {
+          contenido.innerHTML = html;
+          fila.style.display = "table-row";
+        });
+    } else {
+      fila.style.display = "none";
+    }
+  }
+</script>
+
+{% endblock %}

@@ -103,15 +103,28 @@
         <div><label>Cierre en Dólares (US$):</label> <input type="number" step="0.01" name="cierre_dolares" value="{{ propuesta.cierre_dolares }}"></div>
 
         {# ✅ Campos ocultos para conservar filtros originales #}
+
+        {% if request.args.get("next") %}
+            <input type="hidden" name="next" value="{{ request.args.get('next') }}">
+        {% endif %}
+
+
         {% for nombre, valor in filtros.items() %}
             <input type="hidden" name="{{ nombre }}" value="{{ valor }}">
         {% endfor %}
 
         <div>
             <button type="submit" class="button guardar">Guardar Cambios</button>
-            <a href="{{ url_for('index', **filtros) }}">
+
+            {% if request.args.get("next") %}
+              <a href="{{ request.args.get('next') }}">
                 <button type="button" class="button salir">Salir sin guardar</button>
-            </a>
+              </a>
+            {% else %}
+              <a href="{{ url_for('index', **filtros) }}">
+                <button type="button" class="button salir">Salir sin guardar</button>
+              </a>
+            {% endif %}
 
 
         </div>
