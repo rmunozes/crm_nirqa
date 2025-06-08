@@ -1462,7 +1462,9 @@ def facturacion_reporte_facturas():
         id_oc = str(f.get("id_oc", ""))
         nro_factura = f.get("nro_factura", "")
         fecha_factura = f.get("fecha_factura", "")
-        monto = float(f.get("monto_factura") or f.get("monto") or f.get("monto_sin_igv") or 0)
+        # monto = float(f.get("monto_factura") or f.get("monto") or f.get("monto_sin_igv") or 0)
+        monto_soles = float(f.get("monto_factura_soles") or 0)
+        monto_dolares = float(f.get("monto_factura_dolares") or 0)
 
         oc = ordenes_dict.get(id_oc)
         if not oc:
@@ -1482,8 +1484,11 @@ def facturacion_reporte_facturas():
             "cliente": propuesta.cliente,
             "cliente_final": propuesta.cliente_final,
             "nombre_oportunidad": propuesta.nombre_oportunidad,
-            "monto_soles": monto if moneda == "S/" else 0.0,
-            "monto_dolares": monto if moneda == "US$" else 0.0
+            # "monto_soles": monto if moneda == "S/" else 0.0,
+            # "monto_dolares": monto if moneda == "US$" else 0.0
+            "monto_soles": monto_soles,
+            "monto_dolares": monto_dolares
+
         })
 
     # 🔍 Filtros después de construir el reporte
@@ -1503,14 +1508,18 @@ def facturacion_reporte_facturas():
     reporte = [r for r in reporte if rango_fecha_ok(r)]
 
     # Ordenamiento
+
     if sort:
         try:
             if sort in ["monto_soles", "monto_dolares"]:
                 reporte.sort(key=lambda x: float(x.get(sort, 0)), reverse=reverse)
+            elif sort == "nro_factura":
+                # Ordenar por el número, omitiendo los primeros 5 caracteres
+                reporte.sort(key=lambda x: int((x.get("nro_factura") or "E000-0")[5:]), reverse=reverse)
             else:
                 reporte.sort(key=lambda x: (x.get(sort) or "").lower(), reverse=reverse)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Error en ordenamiento: {e}")
 
     # Totales y paginación
     total_general_soles = sum(r["monto_soles"] for r in reporte)
