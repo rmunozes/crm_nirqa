@@ -1908,11 +1908,203 @@ def registrar_nc_desde_xml():
         return render_template("facturacion/error_factura_xml.html", mensaje=resultado["error"])
 
 
+@app.route("/facturacion/resumen")
+def facturacion_resumen():
+    from services.facturacion_service import obtener_todo_facturacion
+    ordenes, facturas = obtener_todo_facturacion()
+    ordenes = [dict(o) for o in ordenes]
+    facturas = [dict(f) for f in facturas]
+    ordenes_dict = {oc["id_oc"]: oc for oc in ordenes}
+
+    ocs_por_propuesta = {}
+    for oc in ordenes:
+        ocs_por_propuesta.setdefault(oc["id_propuesta"], []).append(oc["id_oc"])
+
+    facturas_por_oc = {}
+    for f in facturas:
+        facturas_por_oc.setdefault(f["id_oc"], []).append(f)
+
+    propuestas = [p for p in leer_propuestas(pagina=1, filas_por_pagina=10000) if (p.status or "").lower() == "booking"]
+
+    resumen = {}
+    for p in propuestas:
+        resumen[p.id] = {
+            "id": p.id,
+            "cliente": p.cliente,
+            "cliente_final": p.cliente_final,
+            "nombre_oportunidad": p.nombre_oportunidad,
+            "facturado_soles": 0.0,
+            "facturado_dolares": 0.0,
+            "pendiente_soles": 0.0,
+            "pendiente_dolares": 0.0
+        }
+
+    # Fechas desde filtros
+    from datetime import datetime
+    fecha_desde = request.args.get("fecha_factura_desde")
+    fecha_hasta = request.args.get("fecha_factura_hasta")
+
+    try:
+        fecha_desde_dt = datetime.strptime(fecha_desde, "%Y-%m-%d") if fecha_desde else None
+        fecha_hasta_dt = datetime.strptime(fecha_hasta, "%Y-%m-%d") if fecha_hasta else None
+    except ValueError:
+        fecha_desde_dt = None
+        fecha_hasta_dt = None
+
+    excluded_soles = 0.0
+    excluded_dolares = 0.0
+
+    for f in facturas:
+        id_oc = f["id_oc"]
+        oc = ordenes_dict.get(id_oc)
+        if not oc:
+            continue
+        id_propuesta = oc["id_propuesta"]
+        moneda = oc["moneda"]
+        fecha_str = f.get("fecha_factura")
+
+        if not fecha_str:
+            continue
+        try:
+            fecha_factura_dt = datetime.strptime(fecha_str, "%Y-%m-%d")
+        except ValueError:
+            continue
+        if fecha_desde_dt and fecha_factura_dt < fecha_desde_dt:
+            continue
+        if fecha_hasta_dt and fecha_factura_dt > fecha_hasta_dt:
+            continue
+
+        if id_propuesta not in resumen:
+            excluded_soles += float(f["monto_factura_soles"] or 0)
+            excluded_dolares += float(f["monto_factura_dolares"] or 0)
+            continue
+
+        if moneda == "S/":
+            monto = float(f["monto_factura_soles"] or 0)
+            resumen[id_propuesta]["facturado_soles"] += monto
+        elif moneda == "US$":
+            monto = float(f["monto_factura_dolares"] or 0)
+            resumen[id_propuesta]["facturado_dolares"] += monto
+
+    # Filtros generales
+    id_filtro = request.args.get("id", "").strip()
+    cliente = request.args.get("cliente", "").strip().lower()
+    cliente_final = request.args.get("cliente_final", "").strip().lower()
+    nombre_oportunidad = request.args.get("nombre_oportunidad", "").strip().lower()
+
+    min_fact_soles = float(request.args.get("min_fact_soles") or -1)
+    max_fact_soles = float(request.args.get("max_fact_soles") or 1e12)
+    min_fact_dolares = float(request.args.get("min_fact_dolares") or -1)
+    max_fact_dolares = float(request.args.get("max_fact_dolares") or 1e12)
+
+    min_pend_soles = float(request.args.get("min_pend_soles") or -1)
+    max_pend_soles = float(request.args.get("max_pend_soles") or 1e12)
+    min_pend_dolares = float(request.args.get("min_pend_dolares") or -1)
+    max_pend_dolares = float(request.args.get("max_pend_dolares") or 1e12)
+
+    nro_oc = request.args.get("nro_oc", "").strip().lower()
+    nro_factura = request.args.get("nro_factura", "").strip().lower()
+
+    data_filtrada = []
+
+    for r in resumen.values():
+        if id_filtro and id_filtro not in str(r["id"]):
+            continue
+        if cliente and cliente not in (r["cliente"] or "").lower():
+            continue
+        if cliente_final and cliente_final not in (r["cliente_final"] or "").lower():
+            continue
+        if nombre_oportunidad and nombre_oportunidad not in (r["nombre_oportunidad"] or "").lower():
+            continue
+
+        if not (min_fact_soles <= r["facturado_soles"] <= max_fact_soles):
+            continue
+        if not (min_fact_dolares <= r["facturado_dolares"] <= max_fact_dolares):
+            continue
+        if not (min_pend_soles <= r["pendiente_soles"] <= max_pend_soles):
+            continue
+        if not (min_pend_dolares <= r["pendiente_dolares"] <= max_pend_dolares):
+            continue
+
+        if nro_oc:
+            oc_relacionados = [oc for oc in ordenes if oc["id_propuesta"] == r["id"]]
+            if not any(nro_oc in (oc["nro_oc"] or "").lower() for oc in oc_relacionados):
+                continue
+
+        if nro_factura:
+            oc_relacionados = [oc for oc in ordenes if oc["id_propuesta"] == r["id"]]
+            facturas_relacionadas = [
+                f for f in facturas for oc in oc_relacionados if f["id_oc"] == oc["id_oc"]
+            ]
+            if not any(nro_factura in (f["nro_factura"] or "").lower() for f in facturas_relacionadas):
+                continue
+
+        # Solo incluir propuestas con algún monto facturado en el rango
+        if r["facturado_soles"] > 0 or r["facturado_dolares"] > 0:
+            data_filtrada.append(r)
+
+    sort = request.args.get("sort")
+    order = request.args.get("order", "asc")
+    if sort in [
+        "id", "cliente", "cliente_final", "nombre_oportunidad",
+        "facturado_soles", "facturado_dolares", "pendiente_soles", "pendiente_dolares"
+    ]:
+        data_filtrada.sort(
+            key=lambda r: str(r[sort]).lower() if isinstance(r[sort], str) else r[sort],
+            reverse=(order == "desc")
+        )
+
+    pagina = int(request.args.get("pagina", 1))
+    filas_por_pagina = 50
+    offset = (pagina - 1) * filas_por_pagina
+    total_paginas = (len(data_filtrada) + filas_por_pagina - 1) // filas_por_pagina
+    resumen_paginado = data_filtrada[offset:offset + filas_por_pagina]
+
+    totales = {
+        "facturado_soles": sum(r["facturado_soles"] for r in data_filtrada),
+        "facturado_dolares": sum(r["facturado_dolares"] for r in data_filtrada),
+        "pendiente_soles": 0.0,
+        "pendiente_dolares": 0.0,
+    }
+
+    from urllib.parse import urlencode
+    args_sin_sort = {k: v for k, v in request.args.items() if k not in ("sort", "order")}
+    args_sin_pagina = {k: v for k, v in request.args.items() if k != "pagina"}
+
+    print(f"❌ Facturas excluidas: S/ {excluded_soles:,.2f} | US$ {excluded_dolares:,.2f}")
+
+    return render_template("facturacion/facturacion_resumen.html",
+                           resumen=resumen_paginado,
+                           pagina_actual=pagina,
+                           total_paginas=total_paginas,
+                           query_string_base=urlencode(args_sin_pagina),
+                           totales=totales,
+                           args_paginacion=args_sin_pagina,
+                           args_headers=args_sin_sort,
+                           sort=sort,
+                           order=order)
+
+
+"""
+#Funciona pero filtra montos totales por proyecto (propuestas)
+======================================
 
 @app.route("/facturacion/resumen")
 def facturacion_resumen():
     from services.facturacion_service import obtener_todo_facturacion
     ordenes, facturas = obtener_todo_facturacion()
+    ordenes = [dict(o) for o in ordenes]
+    facturas = [dict(f) for f in facturas]
+    ordenes_dict = {oc["id_oc"]: oc for oc in ordenes}
+
+    # 🔧 Preindexación para acelerar filtro por fecha
+    ocs_por_propuesta = {}
+    for oc in ordenes:
+        ocs_por_propuesta.setdefault(oc["id_propuesta"], []).append(oc["id_oc"])
+
+    facturas_por_oc = {}
+    for f in facturas:
+        facturas_por_oc.setdefault(f["id_oc"], []).append(f)
 
     propuestas = [p for p in leer_propuestas(pagina=1, filas_por_pagina=10000) if (p.status or "").lower() == "booking"]
 
@@ -1944,29 +2136,23 @@ def facturacion_resumen():
 
     for f in facturas:
         id_oc = f["id_oc"]
-        for oc in ordenes:
-            if oc["id_oc"] == id_oc:
-                id_propuesta = oc["id_propuesta"]
-                if id_propuesta not in resumen:
-                    excluded_soles += float(f["monto_factura_soles"] or 0)
-                    excluded_dolares += float(f["monto_factura_dolares"] or 0)
-                    print(f"⚠️ OC {oc['id_oc']} con id_propuesta {id_propuesta} no está en resumen → factura {f['nro_factura']}")
-                break
-
-        for oc in ordenes:
-            if oc["id_oc"] == id_oc:
-                id_propuesta = oc["id_propuesta"]
-                if id_propuesta in resumen:
-                    moneda = oc["moneda"]
-                    if moneda == "S/":
-                        monto = float(f["monto_factura_soles"] or 0)
-                        resumen[id_propuesta]["facturado_soles"] += monto
-                        resumen[id_propuesta]["pendiente_soles"] -= monto
-                    elif moneda == "US$":
-                        monto = float(f["monto_factura_dolares"] or 0)
-                        resumen[id_propuesta]["facturado_dolares"] += monto
-                        resumen[id_propuesta]["pendiente_dolares"] -= monto
-                break
+        oc = ordenes_dict.get(id_oc)
+        if not oc:
+            continue
+        id_propuesta = oc["id_propuesta"]
+        if id_propuesta not in resumen:
+            excluded_soles += float(f["monto_factura_soles"] or 0)
+            excluded_dolares += float(f["monto_factura_dolares"] or 0)
+            continue
+        moneda = oc["moneda"]
+        if moneda == "S/":
+            monto = float(f["monto_factura_soles"] or 0)
+            resumen[id_propuesta]["facturado_soles"] += monto
+            resumen[id_propuesta]["pendiente_soles"] -= monto
+        elif moneda == "US$":
+            monto = float(f["monto_factura_dolares"] or 0)
+            resumen[id_propuesta]["facturado_dolares"] += monto
+            resumen[id_propuesta]["pendiente_dolares"] -= monto
 
     # Filtros
     id_filtro = request.args.get("id", "").strip()
@@ -1987,7 +2173,38 @@ def facturacion_resumen():
     nro_oc = request.args.get("nro_oc", "").strip().lower()
     nro_factura = request.args.get("nro_factura", "").strip().lower()
 
+    fecha_desde = request.args.get("fecha_factura_desde")
+    fecha_hasta = request.args.get("fecha_factura_hasta")
+
+    from datetime import datetime
+
+    def esta_dentro_rango_fechas(id_propuesta):
+        if not fecha_desde and not fecha_hasta:
+            return True
+        try:
+            fecha_desde_dt = datetime.strptime(fecha_desde, "%Y-%m-%d") if fecha_desde else None
+            fecha_hasta_dt = datetime.strptime(fecha_hasta, "%Y-%m-%d") if fecha_hasta else None
+        except ValueError:
+            return False
+
+        for id_oc in ocs_por_propuesta.get(id_propuesta, []):
+            for f in facturas_por_oc.get(id_oc, []):
+                fecha_str = f.get("fecha_factura")
+                if not fecha_str:
+                    continue
+                try:
+                    fecha_factura_dt = datetime.strptime(fecha_str, "%Y-%m-%d")
+                except ValueError:
+                    continue
+                if (
+                    (not fecha_desde_dt or fecha_factura_dt >= fecha_desde_dt) and
+                    (not fecha_hasta_dt or fecha_factura_dt <= fecha_hasta_dt)
+                ):
+                    return True
+        return False
+
     data_filtrada = []
+
     for r in resumen.values():
         if id_filtro and id_filtro not in str(r["id"]):
             continue
@@ -2002,13 +2219,8 @@ def facturacion_resumen():
             continue
         if not (min_fact_dolares <= r["facturado_dolares"] <= max_fact_dolares):
             continue
-
-        # ⚠️ Agregado: print si la propuesta filtrada es NQ000932
         if not (min_pend_soles <= r["pendiente_soles"] <= max_pend_soles):
-            if r["id"] == "NQ000932":
-                print(f"❌ NQ000932 filtrada por pendiente_soles → valor={r['pendiente_soles']}, rango={min_pend_soles}-{max_pend_soles}")
             continue
-
         if not (min_pend_dolares <= r["pendiente_dolares"] <= max_pend_dolares):
             continue
 
@@ -2024,6 +2236,9 @@ def facturacion_resumen():
             ]
             if not any(nro_factura in (f["nro_factura"] or "").lower() for f in facturas_relacionadas):
                 continue
+
+        if not esta_dentro_rango_fechas(r["id"]):
+            continue
 
         data_filtrada.append(r)
 
@@ -2051,226 +2266,9 @@ def facturacion_resumen():
         "pendiente_dolares": sum(r["pendiente_dolares"] for r in data_filtrada),
     }
 
+    from urllib.parse import urlencode
     args_sin_sort = {k: v for k, v in request.args.items() if k not in ("sort", "order")}
     args_sin_pagina = {k: v for k, v in request.args.items() if k != "pagina"}
-    from urllib.parse import urlencode
-
-    print(f"❌ Facturas excluidas: S/ {excluded_soles:,.2f} | US$ {excluded_dolares:,.2f}")
-
-    return render_template("facturacion/facturacion_resumen.html",
-                           resumen=resumen_paginado,
-                           pagina_actual=pagina,
-                           total_paginas=total_paginas,
-                           query_string_base=urlencode(args_sin_pagina),
-                           totales=totales,
-                           args_paginacion=args_sin_pagina,
-                           args_headers=args_sin_sort,
-                           sort=sort,
-                           order=order)
-
-
-""""
-@app.route("/facturacion/resumen")
-def facturacion_resumen():
-    from services.facturacion_service import obtener_todo_facturacion
-    ordenes, facturas = obtener_todo_facturacion()
-
-    #propuestas = [p for p in leer_propuestas(pagina=1, filas_por_pagina=10000) if (p.status or "").lower() == "booking"]
-    # 🔁 Leer todas las propuestas primero
-    todas_propuestas = leer_propuestas(pagina=1, filas_por_pagina=10000)
-
-    # 👇 Construir el resumen base **sólo con propuestas en Booking**
-    propuestas = [p for p in todas_propuestas if (p.status or "").lower() == "booking"]
-
-    resumen = {}
-    for p in propuestas:
-        resumen[p.id] = {
-            "id": p.id,
-            "cliente": p.cliente,
-            "cliente_final": p.cliente_final,
-            "nombre_oportunidad": p.nombre_oportunidad,
-            "facturado_soles": 0.0,
-            "facturado_dolares": 0.0,
-            "pendiente_soles": 0.0,
-            "pendiente_dolares": 0.0
-        }
-
-    # Paso 1: Construir el resumen base con todas las propuestas
-    resumen = {}
-
-    # Bloque temporal
-    for p in propuestas:
-        if (p.status or "").lower() != "booking":
-            print(f"⚠️ Propuesta {p.id} no está en Booking (estado: {p.status})")
-
-    for p in propuestas:
-
-        resumen[p.id] = {
-            "id": p.id,
-            "cliente": p.cliente,
-            "cliente_final": p.cliente_final,
-            "nombre_oportunidad": p.nombre_oportunidad,
-            "facturado_soles": 0.0,
-            "facturado_dolares": 0.0,
-            "pendiente_soles": 0.0,
-            "pendiente_dolares": 0.0
-        }
-
-
-    # Paso 2: Sumar pendientes por OC
-    for oc in ordenes:
-        id_propuesta = oc["id_propuesta"]
-        if id_propuesta in resumen:
-            moneda = oc["moneda"]
-            monto_oc = float(oc["monto_oc"])
-            if moneda == "S/":
-                resumen[id_propuesta]["pendiente_soles"] += monto_oc
-            elif moneda == "US$":
-                resumen[id_propuesta]["pendiente_dolares"] += monto_oc
-
-
-    # Paso 3: Descontar lo facturado
-    excluded_soles = 0.0
-    excluded_dolares = 0.0
-
-    for f in facturas:
-        id_oc = f["id_oc"]
-        for oc in ordenes:
-            if oc["id_oc"] == id_oc:
-                id_propuesta = oc["id_propuesta"]
-                if id_propuesta not in resumen:
-                    excluded_soles += float(f["monto_factura_soles"] or 0)
-                    excluded_dolares += float(f["monto_factura_dolares"] or 0)
-                    print(
-                        f"⚠️ OC {oc['id_oc']} con id_propuesta {id_propuesta} no está en resumen → factura {f['nro_factura']}")
-                break
-
-        id_oc = f["id_oc"]
-        for oc in ordenes:
-            if oc["id_oc"] == id_oc:
-
-                # bloque de pruebas. luego borrar
-                if f["nro_factura"] == "E001-804":
-                    print("✅ OC encontrada para E001-804")
-                    print("  ↪ OC:", oc)
-                    print("  ↪ id_propuesta:", oc["id_propuesta"])
-                    print("  ↪ Factura completa:", f)
-
-
-                id_propuesta = oc["id_propuesta"]
-                if id_propuesta in resumen:
-
-                    moneda = oc["moneda"]
-                    if moneda == "S/":
-                        monto = float(f["monto_factura_soles"] or 0)
-                        resumen[id_propuesta]["facturado_soles"] += monto
-                        resumen[id_propuesta]["pendiente_soles"] -= monto
-                    elif moneda == "US$":
-                        monto = float(f["monto_factura_dolares"] or 0)
-                        resumen[id_propuesta]["facturado_dolares"] += monto
-                        resumen[id_propuesta]["pendiente_dolares"] -= monto
-
-                break
-
-    # Paso 4: Obtener filtros desde request.args
-    id_filtro = request.args.get("id", "").strip()
-    cliente = request.args.get("cliente", "").strip().lower()
-    cliente_final = request.args.get("cliente_final", "").strip().lower()
-    nombre_oportunidad = request.args.get("nombre_oportunidad", "").strip().lower()
-
-    min_fact_soles = float(request.args.get("min_fact_soles", 0) or 0)
-    max_fact_soles = float(request.args.get("max_fact_soles", 1e12) or 1e12)
-    min_fact_dolares = float(request.args.get("min_fact_dolares", 0) or 0)
-    max_fact_dolares = float(request.args.get("max_fact_dolares", 1e12) or 1e12)
-
-    min_pend_soles = float(request.args.get("min_pend_soles", 0) or 0)
-    max_pend_soles = float(request.args.get("max_pend_soles", 1e12) or 1e12)
-    min_pend_dolares = float(request.args.get("min_pend_dolares", 0) or 0)
-    max_pend_dolares = float(request.args.get("max_pend_dolares", 1e12) or 1e12)
-    nro_oc = request.args.get("nro_oc", "").strip().lower()
-    nro_factura = request.args.get("nro_factura", "").strip().lower()
-
-
-
-    # Paso 5: Filtrar según los valores del resumen
-    data_filtrada = []
-    for r in resumen.values():
-        if id_filtro and id_filtro not in str(r["id"]):
-            continue
-        if cliente and cliente not in (r["cliente"] or "").lower():
-            continue
-        if cliente_final and cliente_final not in (r["cliente_final"] or "").lower():
-            continue
-        if nombre_oportunidad and nombre_oportunidad not in (r["nombre_oportunidad"] or "").lower():
-            continue
-
-        if not (min_fact_soles <= r["facturado_soles"] <= max_fact_soles):
-            continue
-        if not (min_fact_dolares <= r["facturado_dolares"] <= max_fact_dolares):
-            continue
-        if not (min_pend_soles <= r["pendiente_soles"] <= max_pend_soles):
-            continue
-        if not (min_pend_dolares <= r["pendiente_dolares"] <= max_pend_dolares):
-            continue
-        # Filtro por Nro OC
-        if nro_oc:
-            oc_relacionados = [oc for oc in ordenes if oc["id_propuesta"] == r["id"]]
-            if not any(nro_oc in (oc["nro_oc"] or "").lower() for oc in oc_relacionados):
-                continue
-
-        # Filtro por Nro Factura
-        if nro_factura:
-            oc_relacionados = [oc for oc in ordenes if oc["id_propuesta"] == r["id"]]
-            facturas_relacionadas = [
-                f for f in facturas for oc in oc_relacionados if f["id_oc"] == oc["id_oc"]
-            ]
-            if not any(nro_factura in (f["nro_factura"] or "").lower() for f in facturas_relacionadas):
-                continue
-
-
-        data_filtrada.append(r)
-
-
-
-    # Paso 5.1: Ordenamiento antes de paginar
-    sort = request.args.get("sort")
-    order = request.args.get("order", "asc")
-
-    if sort in [
-        "id", "cliente", "cliente_final", "nombre_oportunidad",
-        "facturado_soles", "facturado_dolares", "pendiente_soles", "pendiente_dolares"
-    ]:
-        data_filtrada.sort(
-            key=lambda r: str(r[sort]).lower() if isinstance(r[sort], str) else r[sort],
-            reverse=(order == "desc")
-        )
-
-
-    # Paso 6: Paginación
-    pagina = int(request.args.get("pagina", 1))
-    filas_por_pagina = 50
-    offset = (pagina - 1) * filas_por_pagina
-    total_paginas = (len(data_filtrada) + filas_por_pagina - 1) // filas_por_pagina
-    resumen_paginado = data_filtrada[offset:offset + filas_por_pagina]
-
-    # Paso 7: Totales generales
-    totales = {
-        "facturado_soles": sum(r["facturado_soles"] for r in data_filtrada),
-        "facturado_dolares": sum(r["facturado_dolares"] for r in data_filtrada),
-        "pendiente_soles": sum(r["pendiente_soles"] for r in data_filtrada),
-        "pendiente_dolares": sum(r["pendiente_dolares"] for r in data_filtrada),
-    }
-
-    # Paso 8: Preparar argumentos para URL (paginación sin duplicar 'pagina')
-
-    # Esto es para los headers (ordenar columnas sin duplicar)
-    args_sin_sort = {k: v for k, v in request.args.items() if k not in ("sort", "order")}
-
-    # Esto es para la paginación (conserva sort y order)
-    args_sin_pagina = {k: v for k, v in request.args.items() if k != "pagina"}
-
-    from urllib.parse import urlencode
-    query_string_base = urlencode(args_sin_pagina)
 
     print(f"❌ Facturas excluidas: S/ {excluded_soles:,.2f} | US$ {excluded_dolares:,.2f}")
 
@@ -2285,6 +2283,7 @@ def facturacion_resumen():
                            sort=sort,
                            order=order)
 """
+
 
 
 @app.route("/tools/backup")

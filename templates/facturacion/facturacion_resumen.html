@@ -33,6 +33,16 @@
 
       <label>Pend. US$ Desde:<br><input type="number" name="min_pend_dolares" step="0.01" value="{{ request.args.get('min_pend_dolares', '') }}"></label>
       <label>Pend. US$ Hasta:<br><input type="number" name="max_pend_dolares" step="0.01" value="{{ request.args.get('max_pend_dolares', '') }}"></label>
+
+      <label>Fec. Factura Desde:<br>
+        <input type="date" name="fecha_factura_desde" value="{{ request.args.get('fecha_factura_desde', '') }}">
+      </label>
+
+      <label>Fec. Factura Hasta:<br>
+        <input type="date" name="fecha_factura_hasta" value="{{ request.args.get('fecha_factura_hasta', '') }}">
+      </label>
+
+
     </div>
 
     <br>
