@@ -1271,7 +1271,8 @@ def descargar_reporte_facturas_excel():
         id_oc = str(f.get("id_oc", ""))
         nro_factura = f.get("nro_factura", "")
         fecha_factura = f.get("fecha_factura", "")
-        monto = float(f.get("monto_factura") or f.get("monto") or f.get("monto_sin_igv") or 0)
+        monto_soles = float(f.get("monto_factura_soles") or 0)
+        monto_dolares = float(f.get("monto_factura_dolares") or 0)
 
         oc = ordenes_dict.get(id_oc)
         if not oc:
@@ -1290,8 +1291,9 @@ def descargar_reporte_facturas_excel():
             "cliente": propuesta.cliente,
             "cliente_final": propuesta.cliente_final,
             "nombre_oportunidad": propuesta.nombre_oportunidad,
-            "monto_soles": monto if moneda == "S/" else 0.0,
-            "monto_dolares": monto if moneda == "US$" else 0.0
+            "monto_soles": monto_soles,
+            "monto_dolares": monto_dolares
+
         })
 
     # 4. Filtros
@@ -1466,6 +1468,7 @@ def facturacion_reporte_facturas():
         monto_soles = float(f.get("monto_factura_soles") or 0)
         monto_dolares = float(f.get("monto_factura_dolares") or 0)
 
+
         oc = ordenes_dict.get(id_oc)
         if not oc:
             continue
@@ -1530,6 +1533,9 @@ def facturacion_reporte_facturas():
     fin = inicio + por_pagina
     reporte_paginado = reporte[inicio:fin]
 
+    args_sin_pagina = {k: v for k, v in request.args.items() if k != "pagina"}
+    args_sin_pagina_sort_order = {k: v for k, v in request.args.items() if k not in ["pagina", "sort", "order"]}
+
     return render_template("facturacion/reporte_facturas.html",
                            reporte=reporte_paginado,
                            pagina=pagina,
@@ -1538,7 +1544,11 @@ def facturacion_reporte_facturas():
                            sort=sort,
                            order=order,
                            total_general_soles=total_general_soles,
-                           total_general_dolares=total_general_dolares)
+                           total_general_dolares=total_general_dolares,
+                           args_sin_pagina=args_sin_pagina,
+                           args_sin_pagina_sort_order=args_sin_pagina_sort_order
+                           )
+
 
 
 
@@ -1756,7 +1766,7 @@ def registrar_factura_desde_xml():
     resultado = facturacion_service.crear_factura(datos)
 
     if resultado['ok']:
-        return redirect(url_for('facturacion_index', id_abierta=id_propuesta))
+        return redirect(url_for('facturacion_reporte_facturas', id_abierta=id_propuesta))
     else:
         return render_template("facturacion/error_factura_xml.html", mensaje=resultado['error'])
 
@@ -1893,7 +1903,7 @@ def registrar_nc_desde_xml():
     resultado = facturacion_service.crear_nota_credito(datos)
 
     if resultado["ok"]:
-        return redirect(url_for("facturacion_index", id_abierta=id_propuesta))
+        return redirect(url_for("facturacion_reporte_facturas", id_abierta=id_propuesta))
     else:
         return render_template("facturacion/error_factura_xml.html", mensaje=resultado["error"])
 

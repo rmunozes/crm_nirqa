@@ -1,7 +1,15 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<h2>Resumen de Facturación</h2>
+<h2>Facturación por Proyecto</h2>
+
+<div style="margin-bottom: 15px;">
+  <a href="{{ url_for('facturacion_index') }}"
+     style="padding: 6px 12px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px;">
+    📊 Volver a Facturación
+  </a>
+</div>
+
 
 <form method="GET" action="{{ url_for('facturacion_resumen') }}" style="margin-bottom: 20px;">
   <fieldset style="border: 1px solid #ccc; padding: 10px;">
