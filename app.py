@@ -718,57 +718,111 @@ def nueva_orden_compra():
         id_propuesta = request.form.get("id_propuesta")
         nro_oc = request.form.get("nro_oc")
         fecha_oc = request.form.get("fecha_oc")
-        monto_oc = float(request.form.get("monto_oc", 0))
         moneda = request.form.get("moneda")
         pm_asignado = request.form.get("pm_asignado")
-        print("📌 ID propuesta recibido en POST:", id_propuesta)  # 👈 AGREGA ESTO
-        # Validaciones
+
+        try:
+            monto_oc = float(request.form.get("monto_oc", 0))
+        except ValueError:
+            print("❌ OC NO REGISTRADA: monto inválido")
+            return "Error: Monto inválido", 400
+
+        print(f"📌 POST OC recibido para propuesta {id_propuesta} / OC: {nro_oc} / Monto: {monto_oc} / Moneda: {moneda}")
+
+        if not id_propuesta or not nro_oc or not fecha_oc or not moneda:
+            print("❌ OC NO REGISTRADA: campos obligatorios vacíos")
+            return "Error: Datos incompletos", 400
+
+        # Validar estado de la propuesta
         status = obtener_status_propuesta(id_propuesta)
         if status != "Booking":
+            print(f"❌ Propuesta {id_propuesta} no está en estado Booking")
             return "Error: Propuesta no está en estado 'Booking'.", 400
 
+        # Validar consistencia de moneda con otras OC
         monedas_existentes = obtener_moneda_oc_existentes(id_propuesta)
         if monedas_existentes and moneda not in monedas_existentes:
+            print("❌ Moneda no coincide con las órdenes anteriores")
             return "Error: Moneda no coincide con órdenes anteriores.", 400
 
         if monto_oc <= 0:
+            print("❌ OC NO REGISTRADA: monto menor o igual a 0")
             return "Error: El monto debe ser mayor que cero.", 400
 
-        # Validar que la suma total de OCs no exceda cierre_soles o cierre_dolares
         propuesta = leer_propuestas({"id": id_propuesta})[0] if id_propuesta else None
         if not propuesta:
+            print("❌ Propuesta no encontrada")
             return "Error: Propuesta no encontrada", 400
 
-        # 🔒 Validar que solo se pueda usar la moneda correspondiente al cierre definido
+        # Validación de moneda contra cierre
         if moneda == "S/" and not propuesta.cierre_soles:
+            print("❌ Cierre en soles no definido")
             return "Error: No se puede registrar OC en soles si no se ha definido 'cierre_soles'.", 400
         if moneda == "US$" and not propuesta.cierre_dolares:
+            print("❌ Cierre en dólares no definido")
             return "Error: No se puede registrar OC en dólares si no se ha definido 'cierre_dolares'.", 400
 
-        ordenes = facturacion_service.obtener_todas_oc()
-        ordenes_filtradas = [oc for oc in ordenes if oc["id_propuesta"] == id_propuesta and oc["moneda"] == moneda]
-        total_actual = sum(float(oc["monto_oc"]) for oc in ordenes_filtradas)
 
+        from decimal import Decimal, ROUND_HALF_UP
+
+        # Validar que la suma total de OCs no exceda el cierre permitido
+        ordenes = facturacion_service.obtener_todas_oc()
+        ordenes_filtradas = [
+            oc for oc in ordenes
+            if oc["id_propuesta"] == id_propuesta and oc["moneda"] == moneda
+        ]
+
+        # Convertir todos los montos a Decimal con redondeo
+        total_actual = sum(
+            Decimal(str(oc["monto_oc"])).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            for oc in ordenes_filtradas
+        )
+        monto_oc_decimal = Decimal(str(monto_oc)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+        # Determinar el máximo permitido
         if moneda == "S/":
-            maximo = float(propuesta.cierre_soles or 0)
+            maximo_decimal = Decimal(str(propuesta.cierre_soles)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         elif moneda == "US$":
-            maximo = float(propuesta.cierre_dolares or 0)
+            maximo_decimal = Decimal(str(propuesta.cierre_dolares)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         else:
+            print("❌ Moneda inválida")
             return "Error: Moneda no válida.", 400
 
-        if total_actual + monto_oc > maximo:
-            return f"Error: El monto total de órdenes de compra ({moneda} {total_actual + monto_oc:,.2f}) excede el cierre permitido ({moneda} {maximo:,.2f}).", 400
+        total_completo = total_actual + monto_oc_decimal
+
+        print(f"🧮 Suma OCs previas: {total_actual}")
+        print(f"➕ Nueva OC: {monto_oc_decimal}")
+        print(f"📏 Total completo: {total_completo}")
+        print(f"🎯 Cierre permitido: {maximo_decimal}")
+        print(f"🔎 Diferencia: {total_completo - maximo_decimal}")
+
+        if (total_completo - maximo_decimal).copy_abs() > Decimal("0.05"):
+
+            print(f"❌ Monto total ({total_completo}) excede cierre ({maximo_decimal})")
+            error = f"❌ El monto total de órdenes de compra ({moneda} {total_completo:,.2f}) excede el cierre permitido ({moneda} {maximo_decimal:,.2f})."
+
+            # ← Preparar data para renderizado
+            ordenes = facturacion_service.obtener_todas_oc()
+            ordenes_filtradas = [oc for oc in ordenes if oc["id_propuesta"] == id_propuesta]
+            propuesta = leer_propuestas({"id": id_propuesta})[0]
+
+            return render_template("facturacion/oc_nueva.html",
+                                   id_propuesta=id_propuesta,
+                                   propuesta=propuesta,
+                                   ordenes=ordenes_filtradas,
+                                   error=error)
 
         datos_oc = {
             "id_propuesta": id_propuesta,
             "nro_oc": nro_oc,
             "fecha_oc": fecha_oc,
-            "monto_oc": monto_oc,
+            "monto_oc": float(monto_oc_decimal),
             "moneda": moneda,
             "pm_asignado": pm_asignado
         }
-        crear_orden_compra(datos_oc)
 
+        crear_orden_compra(datos_oc)
+        print(f"✅ OC {nro_oc} registrada para propuesta {id_propuesta} por {moneda} {monto_oc:,.2f}")
 
         if request.args.get("ajax") == "1":
             ordenes = facturacion_service.obtener_todas_oc()
@@ -778,23 +832,21 @@ def nueva_orden_compra():
             facturas_filtradas = [f for f in facturas if f["id_oc"] in ids_oc]
             propuesta = leer_propuestas({"id": id_propuesta})[0]
 
-
             return render_template("facturacion/facturacion_detalles_parcial.html",
                                    ordenes=ordenes_filtradas,
                                    facturas=facturas_filtradas,
                                    id_propuesta=id_propuesta,
-                                   propuesta=propuesta
-                                   )
+                                   propuesta=propuesta)
 
-        else:
-            return redirect(url_for("facturacion_index", id_abierta=id_propuesta))
+        return redirect(url_for("facturacion_index", id_abierta=id_propuesta))
 
-    # ←←← Esto es para manejar GET con id_propuesta
+    # GET
     id_propuesta = request.args.get("id_propuesta", "")
     propuesta = leer_propuestas({"id": id_propuesta})[0] if id_propuesta else None
     return render_template("facturacion/oc_nueva.html", id_propuesta=id_propuesta, propuesta=propuesta)
 
-    print(">>> POST recibido: id_propuesta =", id_propuesta)
+
+
 
 @app.route('/facturacion')
 def facturacion_index():
@@ -924,55 +976,69 @@ def facturacion_index():
     print(">> Ejemplo propuesta:",
           propuestas_filtradas[0].__dict__ if propuestas_filtradas else "ninguna propuesta pasa")
 
-
 @app.route('/facturacion/factura/nueva', methods=['GET', 'POST'])
 def nueva_factura():
     if request.method == 'POST':
         datos = {
-            'id_oc': request.form['id_oc'],
-            'nro_factura': request.form['nro_factura'],
-            'fecha_factura': request.form['fecha_factura'],
-            'monto_factura': request.form['monto_factura']
+            'id_oc': request.form.get('id_oc', '').strip(),
+            'nro_factura': request.form.get('nro_factura', '').strip(),
+            'fecha_factura': request.form.get('fecha_factura', '').strip(),
+            'monto_factura': request.form.get('monto_factura', '').strip()
         }
 
-        # 🔒 Validar que el número de factura no se repita
+        # Validar campos obligatorios
+        if not all([datos['id_oc'], datos['nro_factura'], datos['fecha_factura'], datos['monto_factura']]):
+            print("❌ Error: datos incompletos")
+            return "Error: Todos los campos son obligatorios", 400
+
         conn = get_db_connection()
         cursor = conn.cursor()
+
+        # Validar duplicidad de factura
         cursor.execute("SELECT COUNT(*) AS total FROM facturas WHERE nro_factura = ?", (datos['nro_factura'],))
-        existe = cursor.fetchone()['total']
-        if existe > 0:
+        if cursor.fetchone()['total'] > 0:
             conn.close()
+            print("❌ Error: factura duplicada")
             return f"Error: Ya existe una factura con el número {datos['nro_factura']}", 400
 
-        # Leer id_propuesta, monto_oc y moneda de esa OC
+        # Validar OC
         cursor.execute("SELECT id_propuesta, monto_oc, moneda FROM ordenes_compra WHERE id_oc = ?", (datos["id_oc"],))
         row = cursor.fetchone()
         if not row:
             conn.close()
-            return "Error: OC no válida", 400
+            print("❌ Error: OC no válida")
+            return "Error: Orden de compra no válida", 400
 
         id_propuesta = row["id_propuesta"]
-        monto_oc = float(row["monto_oc"])
         moneda = row["moneda"]
-        datos["moneda"] = moneda  # ← Agregado para compatibilidad con el service
+        datos["moneda"] = moneda
 
-        # Validar monto ingresado
         try:
+            monto_oc = float(row["monto_oc"])
             nuevo_monto = float(datos["monto_factura"])
             if nuevo_monto <= 0:
                 raise ValueError()
-        except:
+        except ValueError:
             conn.close()
+            print("❌ Error: monto inválido")
             return "Error: Monto inválido", 400
 
-        # Obtener total facturado actual para esa OC
-        cursor.execute("""
-            SELECT 
-                COALESCE(SUM(monto_factura_soles), 0) + COALESCE(SUM(monto_factura_dolares), 0) AS total
-            FROM facturas
-            WHERE id_oc = ?
-        """, (datos["id_oc"],))
-        total_facturado = cursor.fetchone()["total"] or 0
+        # Calcular facturado actual en la misma moneda
+        if moneda == "S/":
+            cursor.execute("""
+                SELECT COALESCE(SUM(monto_factura_soles), 0) AS total
+                FROM facturas
+                WHERE id_oc = ?
+            """, (datos["id_oc"],))
+        else:
+            cursor.execute("""
+                SELECT COALESCE(SUM(monto_factura_dolares), 0) AS total
+                FROM facturas
+                WHERE id_oc = ?
+            """, (datos["id_oc"],))
+
+        total_facturado = cursor.fetchone()["total"] or 0.0
+        print(f"🧾 OC {datos['id_oc']} / Moneda: {moneda} / Facturado actual: {total_facturado} / Nuevo: {nuevo_monto} / Límite OC: {monto_oc}")
 
         if total_facturado + nuevo_monto > monto_oc:
             conn.close()
@@ -1012,7 +1078,6 @@ def nueva_factura():
     return render_template('facturacion/factura_nueva.html',
                            ordenes=ordenes_filtradas,
                            id_propuesta=id_propuesta)
-
 
 
 @app.route("/facturacion")
@@ -1928,16 +1993,21 @@ def facturacion_resumen():
 
     resumen = {}
     for p in propuestas:
-        resumen[p.id] = {
-            "id": p.id,
+        id_propuesta = p.id
+        cierre_soles = float(p.cierre_soles or 0)
+        cierre_dolares = float(p.cierre_dolares or 0)
+
+        resumen[id_propuesta] = {
+            "id": id_propuesta,
             "cliente": p.cliente,
             "cliente_final": p.cliente_final,
             "nombre_oportunidad": p.nombre_oportunidad,
             "facturado_soles": 0.0,
             "facturado_dolares": 0.0,
-            "pendiente_soles": 0.0,
-            "pendiente_dolares": 0.0
+            "pendiente_soles": cierre_soles,  # se irá reduciendo con cada factura
+            "pendiente_dolares": cierre_dolares
         }
+
 
     # Fechas desde filtros
     from datetime import datetime
@@ -1985,6 +2055,21 @@ def facturacion_resumen():
         elif moneda == "US$":
             monto = float(f["monto_factura_dolares"] or 0)
             resumen[id_propuesta]["facturado_dolares"] += monto
+
+        if moneda == "S/":
+            resumen[id_propuesta]["pendiente_soles"] -= monto
+        elif moneda == "US$":
+            resumen[id_propuesta]["pendiente_dolares"] -= monto
+
+    # Calcula pendientes en base al cierre - facturado
+    for r in resumen.values():
+        propuesta = next((p for p in propuestas if p.id == r["id"]), None)
+        if not propuesta:
+            continue
+        cierre_soles = propuesta.cierre_soles or 0.0
+        cierre_dolares = propuesta.cierre_dolares or 0.0
+        r["pendiente_soles"] = max(0, cierre_soles - r["facturado_soles"])
+        r["pendiente_dolares"] = max(0, cierre_dolares - r["facturado_dolares"])
 
     # Filtros generales
     id_filtro = request.args.get("id", "").strip()
@@ -2040,8 +2125,8 @@ def facturacion_resumen():
                 continue
 
         # Solo incluir propuestas con algún monto facturado en el rango
-        if r["facturado_soles"] > 0 or r["facturado_dolares"] > 0:
-            data_filtrada.append(r)
+        #if r["facturado_soles"] > 0 or r["facturado_dolares"] > 0:
+        data_filtrada.append(r)
 
     sort = request.args.get("sort")
     order = request.args.get("order", "asc")
@@ -2063,9 +2148,10 @@ def facturacion_resumen():
     totales = {
         "facturado_soles": sum(r["facturado_soles"] for r in data_filtrada),
         "facturado_dolares": sum(r["facturado_dolares"] for r in data_filtrada),
-        "pendiente_soles": 0.0,
-        "pendiente_dolares": 0.0,
+        "pendiente_soles": sum(r["pendiente_soles"] for r in data_filtrada),
+        "pendiente_dolares": sum(r["pendiente_dolares"] for r in data_filtrada),
     }
+
 
     from urllib.parse import urlencode
     args_sin_sort = {k: v for k, v in request.args.items() if k not in ("sort", "order")}

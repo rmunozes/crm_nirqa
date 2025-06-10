@@ -1,3 +1,6 @@
+<!-- Pega esto aquí -->
+<div id="mensaje-error" style="display: none; color: red; font-weight: bold; margin-bottom: 15px;"></div>
+
 <form method="POST" action="/facturacion/nueva_oc" id="form-oc-ajax">
   <input type="hidden" name="id_propuesta" id="id_propuesta_oc" value="{{ id_propuesta }}">
 
@@ -33,6 +36,7 @@
 
 
   <button type="submit" class="button">Guardar OC</button>
+
 </form>
 
 <script>
@@ -55,7 +59,14 @@ document.getElementById("form-oc-ajax").addEventListener("submit", function (e) 
     document.getElementById("detalles-" + idPropuesta).innerHTML = html;
   })
   .catch(err => {
-    alert("Error: " + err.message);
+    const errorDiv = document.getElementById("mensaje-error");
+    errorDiv.innerText = "❌ " + err.message;
+    errorDiv.style.display = "block";
+
+    setTimeout(() => {
+      errorDiv.style.display = "none";
+      errorDiv.innerText = "";
+    }, 5000);
   });
 });
 </script>
