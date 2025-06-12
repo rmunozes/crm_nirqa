@@ -16,6 +16,13 @@ import os
 import shutil
 
 
+print("Modo:", os.getenv("ENV"))
+print("URL de DB:", os.getenv("DATABASE_URL"))
+print("🔧 ENV desde Python:", os.getenv("ENV"))
+print("🔧 USE_SQLITE desde Python:", os.getenv("USE_SQLITE"))
+print("🔧 DATABASE_URL desde Python:", os.getenv("DATABASE_URL"))
+
+
 def tiene_permiso(accion):
     rol = session.get("rol")
     permisos = {

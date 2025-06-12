@@ -4,7 +4,7 @@ venv/
 crm_env/
 
 # Ignorar base de datos local para evitar sobrescritura
-# database/crm_database.db
+database/crm_database.db
 
 # Ignorar archivos Excel usados para carga masiva
 *.xlsx
@@ -20,6 +20,8 @@ __pycache__/
 # Archivos de configuración locales (si los tuvieras)
 *.env
 .env
+.env.development
+.env.production
 
 # Ignorar respaldos locales
 backups/
