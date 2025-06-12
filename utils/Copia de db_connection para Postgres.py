@@ -13,8 +13,7 @@ ENV = os.getenv("ENV", "development")
 print("🔧 Modo:", ENV)
 
 # Decidir si se usa SQLite (en desarrollo) o PostgreSQL (en producción)
-#USE_SQLITE = ENV == "development"
-USE_SQLITE = os.getenv("USE_SQLITE", "true").lower() == "true"
+USE_SQLITE = ENV == "development"
 
 if USE_SQLITE:
     import sqlite3
