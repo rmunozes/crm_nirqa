@@ -14,4 +14,6 @@ zipp==3.20.2
 pandas
 openpyxl
 python-dotenv==1.0.1
+psycopg2-binary
+
 
